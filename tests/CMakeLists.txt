@@ -1,0 +1,10 @@
+# Unit tests use a tiny self-contained runner (tests/test.h) - no external framework to download or license.
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+if(TEST_SOURCES)
+  add_executable(filo_tests ${TEST_SOURCES})
+  target_link_libraries(filo_tests PRIVATE filo_core filo_wheel filo_gfx filo_registry filo_shell filo_ui)
+  target_include_directories(filo_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  filo_embed_manifest(filo_tests)
+  filo_copy_runtime(filo_tests)
+  add_test(NAME filo_tests COMMAND filo_tests)
+endif()

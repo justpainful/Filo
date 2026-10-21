@@ -1,0 +1,951 @@
+{
+  "schema": 1,
+  "id": "facet",
+  "name": "Facet",
+  "description": "Folded planes. Angular volumes and crisp operation marks.",
+  "round": false,
+  "icons": {
+    "compress": [
+      {
+        "path": "M3 3l9 4-5 5zM21 21l-9-4 5-5z",
+        "fill": true,
+        "opacity": 1
+      },
+      {
+        "path": "M3 3l4 9 5-5zM21 21l-4-9-5 5z",
+        "fill": true,
+        "opacity": 0.4
+      }
+    ],
+    "metadata": [
+      {
+        "path": "M3 4h10l9 8-9 10L3 12z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M13 4l9 8-9 10z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M6 7h.01M9 12l5 5M12 9l5 5",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "edit": [
+      {
+        "path": "M3 6h8M15 6h6M3 12h3M10 12h11M3 18h11M18 18h3M11 4h4v4h-4zM6 10h4v4H6zM14 16h4v4h-4z",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 6h8M15 6h6M3 12h3M10 12h11M3 18h11M18 18h3M11 4h4v4h-4zM6 10h4v4H6zM14 16h4v4h-4z",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "annotate": [
+      {
+        "path": "M3 4h15v5M3 4v16h16v-8M8 16v-4l9-9 4 4-9 9zM15 5l4 4",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 4h15v5M3 4v16h16v-8M8 16v-4l9-9 4 4-9 9zM15 5l4 4",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "addbg": [
+      {
+        "path": "M3 5h18v14H3zM3 15l5-5 5 5 3-3 5 5M7 8h2M16 3v5M13.5 5.5h5",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 5h18v14H3zM3 15l5-5 5 5 3-3 5 5M7 8h2M16 3v5M13.5 5.5h5",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "crop": [
+      {
+        "path": "M3 5h14l4 4v12H7l-4-4z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M3 5l4 12h14v4H7l-4-4z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M7 2v15h15M2 7h15v15",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "redact": [
+      {
+        "path": "M2 12l7-7h6l7 7-7 7H9z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 12h20l-7 7H9z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M7 8l10 8M5 4l15 16",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "trim": [
+      {
+        "path": "M3 4h4v4H3zM3 16h4v4H3zM7 6h3l8 12h3M7 18h3l8-12h3M12 3v3M12 18v3",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 4h4v4H3zM3 16h4v4H3zM7 6h3l8 12h3M7 18h3l8-12h3M12 3v3M12 18v3",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "speed": [
+      {
+        "path": "M2 18V9l6-6h8l6 6v9l-5 4H7z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 18l10-6 10 6-5 4H7z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M5 16l3-8h8l3 8M12 16l4-7",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "join": [
+      {
+        "path": "M2 5h8v16H2zM14 3h8v16h-8z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 5l8 16H2zM14 3l8 16h-8z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M5 8v10M19 6v10M8 12h8",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "frames": [
+      {
+        "path": "M8 2h14v14H8zM2 8h14v14H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M8 2l14 14H8zM2 8l14 14H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M8 2h14v14M2 8h14v14H2z",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "split": [
+      {
+        "path": "M2 4h8v18H2zM14 2h8v18h-8z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 4l8 18H2zM14 2l8 18h-8z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M6 8l-3 4 3 4M18 6l3 4-3 4",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "normalize": [
+      {
+        "path": "M2 9h4v9H2zM7 4h4v18H7zM12 7h4v11h-4zM17 2h4v20h-4z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 9l4 9H2zM7 4l4 18H7zM12 7l4 11h-4zM17 2l4 20h-4z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 12h19",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "visualizer": [
+      {
+        "path": "M2 12h4V5h4v14h4V8h4v4h4",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "channels": [
+      {
+        "path": "M2 4h8v18H2zM14 2h8v18h-8z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 4l8 18H2zM14 2l8 18h-8z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M5 8v10M8 6v14M17 6v10M20 4v14",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "bleep": [
+      {
+        "path": "M2 9h5l7-6v19l-7-6H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M7 9l7-6v19l-7-6z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M17 6l5 6-5 6",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "merge": [
+      {
+        "path": "M2 3h11v10H2zM10 11h12v11H10z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 3l11 10H2zM10 11l12 11H10z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 3h11v10H2zM10 11h12v11H10z",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "organize": [
+      {
+        "path": "M2 3h8v8H2zM13 3h9v8h-9zM2 14h8v8H2zM13 14h9v8h-9z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 3l8 8H2zM13 3l9 8h-9zM2 14l8 8H2zM13 14l9 8h-9z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M5 5h4M16 5h5M5 16h4M16 16h5",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "share": [
+      {
+        "path": "M2 12h7V3h6v9h7v10H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 12l7 5h13v5H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M12 15V3M8 7l4-4 4 4M5 17h14",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "paperclip": [
+      {
+        "path": "M7 17V6l3-3h8l3 3v12l-3 3H6l-3-3V8M11 16V7h5v9h-5",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "float": [
+      {
+        "path": "M2 7l10-5 10 5v10l-10 5-10-5z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 12l10-5v10l-10 5z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 7l10 5 10-5M12 12v10M2 15l10 5 10-5",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "copy": [
+      {
+        "path": "M2 2h13v5h7v12l-4 3H7v-7H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 2l13 5H7v8H2zM18 22v-3h4z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M7 15V7h8M11 12h7M11 16h7M18 22v-3h4",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "move": [
+      {
+        "path": "M9 2h6v7h7v6h-7v7H9v-7H2V9h7z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 2v20H9v-7H2v-3h10z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "copypath": [
+      {
+        "path": "M3 3h6v6H3zM15 15h6v6h-6zM9 6h9v9M6 9v9h9",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "terminal": [
+      {
+        "path": "M2 3h20v15l-5 4H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M17 22v-4h5zM2 3l20 15H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 7h20M6 10l4 4-4 4M12 18h5M17 22v-4h5",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "convert": [
+      {
+        "path": "M2 5h14V2l6 6-6 6v-3H2zM22 16H8v-3l-6 6 6 3v-2h14z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 5l20 3-6 6v-3H2zM2 19l20-3v4H8v2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M3 8h16M6 5l-3 3 3 3M21 19H5M18 16l3 3-3 3",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "extract": [
+      {
+        "path": "M2 4h20v5l-3 13H5L2 9z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 4l10 5 10-5v5H2zM12 9h10l-3 13h-7z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 9h20M12 11v8M8 15l4 4 4-4",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "archive": [
+      {
+        "path": "M2 4h20v5l-3 13H5L2 9z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 4l10 5 10-5v5H2zM12 9h10l-3 13h-7z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 9h20M10 13h4v3h-4z",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "qr": [
+      {
+        "path": "M2 2h8v8H2zM14 2h8v8h-8zM2 14h8v8H2zM5 5h2v2H5zM17 5h2v2h-2zM5 17h2v2H5zM14 14h3v3h5v5h-4M14 19v3M21 14v2",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M2 2h8v8H2zM14 2h8v8h-8zM2 14h8v8H2zM5 5h2v2H5zM17 5h2v2h-2zM5 17h2v2H5zM14 14h3v3h5v5h-4M14 19v3M21 14v2",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "removeaudio": [
+      {
+        "path": "M2 9h5l7-6v19l-7-6H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M7 9l7-6v19l-7-6z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M17 8l5 8M22 8l-5 8",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "rotate": [
+      {
+        "path": "M4 17V7l4-4h9l4 4v10l-4 4h-5M3 11h5M3 11V6M9 7v10h7V7z",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "trash": [
+      {
+        "path": "M4 7h16l-3 15H7zM2 3h20v3H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M4 7l8 15h5l3-15z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M8 10l2 8M16 10l-2 8",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "play": [
+      {
+        "path": "M6 3l15 9-15 9z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "pause": [
+      {
+        "path": "M5 3h5v18H5zM14 3h5v18h-5z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "stop": [
+      {
+        "path": "M4 4h16v16H4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "close": [
+      {
+        "path": "M4 4l16 16M20 4L4 20",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "reset": [
+      {
+        "path": "M4 10V6l3-3h10l4 4v10l-4 4H8l-4-4M4 4v6h6",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "zoom": [
+      {
+        "path": "M3 3h12v12H3zM15 15l6 6",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 3h12v12H3zM15 15l6 6",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "chevronup": [
+      {
+        "path": "M4 16V12l8-8 8 8v4l-8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevrondown": [
+      {
+        "path": "M4 8v4l8 8 8-8V8l-8 8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevronleft": [
+      {
+        "path": "M16 4h-4l-8 8 8 8h4l-8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevronright": [
+      {
+        "path": "M8 4h4l8 8-8 8H8l8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "folder": [
+      {
+        "path": "M2 5h8l3 3h9l-3 13H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 10h20l-3 11H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 10h20M5 16h10",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "image": [
+      {
+        "path": "M2 5h19v13l-5 4H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M16 22v-4h5zM2 5l19 13H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M3 18l6-7 5 5 3-3 4 4M16 8h2",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "video": [
+      {
+        "path": "M2 4h16v5l5-3v13l-5-3v5H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M18 9l5-3v13l-5-3zM2 4l16 17H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M7 8l7 4-7 4zM18 9v7",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "audio": [
+      {
+        "path": "M5 7l15-4v15l-5 4H5z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M5 7l15-4v6L5 13z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M8 16V8l9-2v10M8 16h-3M17 16h-3",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "document": [
+      {
+        "path": "M4 2h10l6 7v13H4z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M14 2v7h6zM4 22l16-13v13z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M14 2v7h6M7 13h10M7 17h7",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "check": [
+      {
+        "path": "M3 12l6 6L21 6M3 17v4h4M17 3h4v4",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "warning": [
+      {
+        "path": "M9 3h6l7 14v4H2v-4zM12 8v6M11 17h2",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M9 3h6l7 14v4H2v-4zM12 8v6M11 17h2",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "more": [
+      {
+        "path": "M3 10h4v4H3zM10 10h4v4h-4zM17 10h4v4h-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "add": [
+      {
+        "path": "M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "remove": [
+      {
+        "path": "M3 10h18v4H3z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "grip": [
+      {
+        "path": "M6 4h4v4H6zM14 4h4v4h-4zM6 10h4v4H6zM14 10h4v4h-4zM6 16h4v4H6zM14 16h4v4h-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "mono": [
+      {
+        "path": "M4 4h16v16H4zM12 4v16M12 8h4M12 12h4M12 16h4",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M4 4h16v16H4zM12 4v16M12 8h4M12 12h4M12 16h4",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "pin": [
+      {
+        "path": "M6 2h12l-2 8 4 5H4l4-5zM11 15h2v8h-2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 2h6l-2 8 4 5h-8z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M8 5h8M9 12h6",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "settings": [
+      {
+        "path": "M2 4h20v16H2zM6 8h12M6 12h12M6 16h12M9 6v4M15 10v4M10 14v4",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M2 4h20v16H2zM6 8h12M6 12h12M6 16h12M9 6v4M15 10v4M10 14v4",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "star": [
+      {
+        "path": "M12 2l3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 2v11l10-4-5 5 1 8-6-4z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M12 2v11l-6 9M12 13l10-4",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "swap": [
+      {
+        "path": "M6 3L2 7l4 4M2 7h17v4M18 13l4 4-4 4M22 17H5v-4",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "layers": [
+      {
+        "path": "M2 7l10-5 10 5v10l-10 5-10-5z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 12l10-5v10l-10 5z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M2 7l10 5 10-5M12 12v10M2 15l10 5 10-5",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "text": [
+      {
+        "path": "M2 3h20v5h-7v14H9V8H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 3h10v5h-7v14h-3z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M3 3h18M12 8v14",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "arrow": [
+      {
+        "path": "M3 21L21 3M8 3h13v13",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "line": [
+      {
+        "path": "M3 21L21 3M2 18v4h4M18 2h4v4",
+        "fill": false,
+        "stroke": 2.4,
+        "opacity": 1
+      }
+    ],
+    "rect": [
+      {
+        "path": "M2 5h20v13l-4 4H2z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M18 22v-4h4zM2 5l16 13H2z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M18 22v-4h4M2 5h20",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "circle": [
+      {
+        "path": "M7 2h10l5 5v10l-5 5H7l-5-5V7z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M12 2h5l5 5v10l-5 5h-5z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M7 2l10 20M17 2L7 22",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "pen": [
+      {
+        "path": "M2 22l2-8L16 2l6 6L10 20z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M2 22l20-14-12 12z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M4 14l6 6M14 4l6 6",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "highlighter": [
+      {
+        "path": "M3 22l4-9L16 2l6 6-9 14z",
+        "fill": true,
+        "opacity": 0.18
+      },
+      {
+        "path": "M3 22L22 8l-9 14z",
+        "fill": true,
+        "opacity": 0.42
+      },
+      {
+        "path": "M7 13l6 9M3 22h10",
+        "fill": false,
+        "stroke": 1.65,
+        "opacity": 1
+      }
+    ],
+    "numbered": [
+      {
+        "path": "M3 3h18v18H3zM9 9l3-2v10M9 17h6",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 3h18v18H3zM9 9l3-2v10M9 17h6",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ],
+    "magnifier": [
+      {
+        "path": "M3 3h12v12H3zM15 15l6 6M6 9h6M9 6v6",
+        "fill": true,
+        "opacity": 0.22
+      },
+      {
+        "path": "M3 3h12v12H3zM15 15l6 6M6 9h6M9 6v6",
+        "fill": false,
+        "stroke": 1.9,
+        "opacity": 1
+      }
+    ]
+  }
+}

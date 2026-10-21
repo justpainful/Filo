@@ -1,0 +1,761 @@
+{
+  "schema": 1,
+  "id": "pebble",
+  "name": "Pebble",
+  "description": "Soft silhouettes. Rounded forms with quiet two-tone depth.",
+  "round": true,
+  "icons": {
+    "compress": [
+      {
+        "path": "M3 7Q3 3 7 3h10q4 0 4 4v10q0 4-4 4H7q-4 0-4-4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M5 5l5 5M10 6v4H6M19 19l-5-5M14 18v-4h4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "metadata": [
+      {
+        "path": "M3 6q0-3 3-3h7l8 8q2 2 0 4l-6 6q-2 2-4 0l-8-8z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M7 7h.01M9 12l4 4M12 9l5 5",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "edit": [
+      {
+        "path": "M3 4h18v16H3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M4 7h16M4 17h16M9 5v4M15 15v4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "annotate": [
+      {
+        "path": "M4 3h16q2 0 2 2v12q0 2-2 2h-9l-6 3v-3H4q-2 0-2-2V5q0-2 2-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M7 14l1-4 7-5 3 3-7 5z",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "addbg": [
+      {
+        "path": "M5 3h14q3 0 3 3v12q0 3-3 3H5q-3 0-3-3V6q0-3 3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M4 16l5-6 5 5 3-3 4 5M16 5v5M13.5 7.5h5",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "crop": [
+      {
+        "path": "M6 3h12q3 0 3 3v12q0 3-3 3H6q-3 0-3-3V6q0-3 3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M7 3v14h14M3 7h14v14",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "redact": [
+      {
+        "path": "M2 12Q12-2 22 12Q12 26 2 12z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M8 12a4 4 0 1 0 .01 0M4 4l16 16",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "trim": [
+      {
+        "path": "M4 6q0-3 3-3t3 3q0 3-3 3T4 6M4 18q0-3 3-3t3 3q0 3-3 3t-3-3",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M8 8l13 12M8 16L21 4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "speed": [
+      {
+        "path": "M2 17a10 10 0 0 1 20 0q0 3-3 3H5q-3 0-3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M5 15a7 7 0 0 1 14 0M12 15l4-6",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "join": [
+      {
+        "path": "M2 7q0-3 3-3h3q3 0 3 3v10q0 3-3 3H5q-3 0-3-3zM13 7q0-3 3-3h3q3 0 3 3v10q0 3-3 3h-3q-3 0-3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M4 7v10M20 7v10M8 12h8M13 9l3 3-3 3",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "frames": [
+      {
+        "path": "M5 2h14q3 0 3 3v12H5zM2 8h14q2 0 2 2v10q0 2-2 2H4q-2 0-2-2V10q0-2 2-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M3 11h12v9H3zM8 3h13v12",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "split": [
+      {
+        "path": "M3 5q0-2 2-2h4v18H5q-2 0-2-2zM15 3h4q2 0 2 2v14q0 2-2 2h-4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 3v18M6 9l-3 3 3 3M18 9l3 3-3 3",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "normalize": [
+      {
+        "path": "M3 10a1.5 1.5 0 0 1 3 0v4a1.5 1.5 0 0 1-3 0zM8 5a1.5 1.5 0 0 1 3 0v14a1.5 1.5 0 0 1-3 0zM13 8a1.5 1.5 0 0 1 3 0v8a1.5 1.5 0 0 1-3 0zM18 3a1.5 1.5 0 0 1 3 0v18a1.5 1.5 0 0 1-3 0z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M3 12h18",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "visualizer": [
+      {
+        "path": "M2 12Q5 2 8 12t6 0 8 0v7H2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M2 12q3-10 6 0t6 0 8 0",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "channels": [
+      {
+        "path": "M3 4q0-2 2-2h4q2 0 2 2v16q0 2-2 2H5q-2 0-2-2zM13 4q0-2 2-2h4q2 0 2 2v16q0 2-2 2h-4q-2 0-2-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M5 8v8M8 5v14M16 8v8M19 5v14",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "bleep": [
+      {
+        "path": "M3 8h4l6-5v18l-6-5H3q-1 0-1-1V9q0-1 1-1z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M17 7q6 5 0 10M16 10q2 2 0 4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "merge": [
+      {
+        "path": "M3 3h9q2 0 2 2v9H5q-2 0-2-2zM10 10h9q2 0 2 2v7q0 2-2 2h-7q-2 0-2-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M4 4h8v8H4zM12 12h8v8h-8z",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "organize": [
+      {
+        "path": "M3 5q0-2 2-2h4q2 0 2 2v4q0 2-2 2H5q-2 0-2-2zM13 5q0-2 2-2h4q2 0 2 2v4q0 2-2 2h-4q-2 0-2-2zM3 15q0-2 2-2h4q2 0 2 2v4q0 2-2 2H5q-2 0-2-2zM13 15q0-2 2-2h4q2 0 2 2v4q0 2-2 2h-4q-2 0-2-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M5 6h4M15 6h4M5 16h4M15 16h4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "share": [
+      {
+        "path": "M3 13q0-3 3-3h12q3 0 3 3v6q0 3-3 3H6q-3 0-3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 16V2M7 7l5-5 5 5M6 17h12",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "paperclip": [
+      {
+        "path": "M4 9a8 8 0 0 1 16 0v8a6 6 0 0 1-12 0V8a3 3 0 0 1 6 0v9H4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M8 16V7q0-4 4-4t4 4v10q0 5-5 5t-5-5V9",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "float": [
+      {
+        "path": "M3 6l9-4 9 4v4l-9 4-9-4zM3 15l9 4 9-4v4l-9 4-9-4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M3 6l9 4 9-4M3 15l9 4 9-4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "copy": [
+      {
+        "path": "M3 5q0-3 3-3h10v4H8q-2 0-2 2v10H3zM10 9h9q3 0 3 3v7q0 3-3 3h-9q-3 0-3-3v-7q0-3 3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M11 13h7M11 17h7",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "move": [
+      {
+        "path": "M3 10h6V4l3-3 3 3v6h6l2 2-2 2h-6v6l-3 3-3-3v-6H3l-2-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "copypath": [
+      {
+        "path": "M2 8a5 5 0 0 1 5-5h5v7H8v4H2zM12 14h4v-4h6v6a5 5 0 0 1-5 5h-5z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M7 16L17 8",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "terminal": [
+      {
+        "path": "M5 3h14q3 0 3 3v12q0 3-3 3H5q-3 0-3-3V6q0-3 3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M6 8l5 4-5 4M13 16h5",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "convert": [
+      {
+        "path": "M3 7h14l-3-3 2-2 7 7-7 7-2-2 3-3H3zM21 17H7l3 3-2 2-7-7 3-3 3 3h14z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M3 9h16M21 17H5",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "extract": [
+      {
+        "path": "M3 5q0-2 2-2h14q2 0 2 2v3H3zM4 10h16v9q0 3-3 3H7q-3 0-3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 10v9M8 15l4 4 4-4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "archive": [
+      {
+        "path": "M3 5q0-2 2-2h14q2 0 2 2v3H3zM4 10h16v9q0 3-3 3H7q-3 0-3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M9 13h6",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "qr": [
+      {
+        "path": "M2 2h8v8H2zM14 2h8v8h-8zM2 14h8v8H2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M4 4h4v4H4zM16 4h4v4h-4zM4 16h4v4H4zM14 14h3v3h4v4h-7z",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "removeaudio": [
+      {
+        "path": "M3 8h4l6-5v18l-6-5H3q-1 0-1-1V9q0-1 1-1z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M17 8l5 8M22 8l-5 8",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "rotate": [
+      {
+        "path": "M12 2a10 10 0 1 0 10 10h-4a6 6 0 1 1-6-6z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M16 2h6v6M22 2l-7 7",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "trash": [
+      {
+        "path": "M6 7h12l-1 13q0 2-2 2H9q-2 0-2-2zM4 3h16v3H4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M9 10v8M15 10v8M9 3V2h6v1",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "play": [
+      {
+        "path": "M6 5q0-3 3-1l12 7q2 1 0 2L9 20q-3 2-3-1z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "pause": [
+      {
+        "path": "M5 5q0-2 2-2h1q2 0 2 2v14q0 2-2 2H7q-2 0-2-2zM14 5q0-2 2-2h1q2 0 2 2v14q0 2-2 2h-1q-2 0-2-2z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "stop": [
+      {
+        "path": "M7 3h10q4 0 4 4v10q0 4-4 4H7q-4 0-4-4V7q0-4 4-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "close": [
+      {
+        "path": "M4 4l16 16M20 4L4 20",
+        "fill": false,
+        "stroke": 2.5,
+        "opacity": 1
+      }
+    ],
+    "reset": [
+      {
+        "path": "M4 10V6l3-3h10l4 4v10l-4 4H8l-4-4M4 4v6h6",
+        "fill": false,
+        "stroke": 2.5,
+        "opacity": 1
+      }
+    ],
+    "zoom": [
+      {
+        "path": "M10 2a8 8 0 1 0 .01 0M16 15l6 6-2 2-6-6z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M10 4a6 6 0 1 0 0 12a6 6 0 1 0 0-12z",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "chevronup": [
+      {
+        "path": "M4 16V12l8-8 8 8v4l-8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevrondown": [
+      {
+        "path": "M4 8v4l8 8 8-8V8l-8 8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevronleft": [
+      {
+        "path": "M16 4h-4l-8 8 8 8h4l-8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevronright": [
+      {
+        "path": "M8 4h4l8 8-8 8H8l8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "folder": [
+      {
+        "path": "M2 6q0-3 3-3h4l3 3h7q3 0 3 3v10q0 3-3 3H5q-3 0-3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M3 10h18M7 15h7",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "image": [
+      {
+        "path": "M5 3h14q3 0 3 3v12q0 3-3 3H5q-3 0-3-3V6q0-3 3-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M3 17l6-6 5 4 3-3 4 6M16 7h.01",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "video": [
+      {
+        "path": "M5 4h10q3 0 3 3v10q0 3-3 3H5q-3 0-3-3V7q0-3 3-3zM18 10l5-4v12l-5-4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M8 8l6 4-6 4z",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "audio": [
+      {
+        "path": "M8 6l13-3v14a3 3 0 1 1-3-3V8l-7 2v9a3 3 0 1 1-3-3z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "document": [
+      {
+        "path": "M6 2h8l7 7v11q0 2-2 2H6q-3 0-3-3V5q0-3 3-3z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "check": [
+      {
+        "path": "M3 12l6 6L21 6M3 17v4h4M17 3h4v4",
+        "fill": false,
+        "stroke": 2.5,
+        "opacity": 1
+      }
+    ],
+    "warning": [
+      {
+        "path": "M10 3q2-3 4 0l9 16q1 3-2 3H3q-3 0-2-3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 8v6M12 18h.01",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "more": [
+      {
+        "path": "M3 10h4v4H3zM10 10h4v4h-4zM17 10h4v4h-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "add": [
+      {
+        "path": "M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "remove": [
+      {
+        "path": "M3 10h18v4H3z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "grip": [
+      {
+        "path": "M6 4h4v4H6zM14 4h4v4h-4zM6 10h4v4H6zM14 10h4v4h-4zM6 16h4v4H6zM14 16h4v4h-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "mono": [
+      {
+        "path": "M12 2a10 10 0 1 0 0 20z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 2a10 10 0 0 1 0 20M12 2v20",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "pin": [
+      {
+        "path": "M8 2h8q2 0 1 2l-1 5 3 4q1 2-1 2H6q-2 0-1-2l3-4-1-5q-1-2 1-2z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M12 15v7",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "settings": [
+      {
+        "path": "M3 4h18v16H3z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M4 7h16M4 17h16M15 5v4M9 15v4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "star": [
+      {
+        "path": "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "swap": [
+      {
+        "path": "M6 3L2 7l4 4M2 7h17v4M18 13l4 4-4 4M22 17H5v-4",
+        "fill": false,
+        "stroke": 2.5,
+        "opacity": 1
+      }
+    ],
+    "layers": [
+      {
+        "path": "M2 7l10-5 10 5-10 5zM2 12l10 5 10-5v5l-10 5-10-5z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M2 7l10 5 10-5M2 17l10 5 10-5",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "text": [
+      {
+        "path": "M3 3h18v5h-6v14H9V8H3z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "arrow": [
+      {
+        "path": "M3 21L21 3M8 3h13v13",
+        "fill": false,
+        "stroke": 2.5,
+        "opacity": 1
+      }
+    ],
+    "line": [
+      {
+        "path": "M3 21L21 3M2 18v4h4M18 2h4v4",
+        "fill": false,
+        "stroke": 2.5,
+        "opacity": 1
+      }
+    ],
+    "rect": [
+      {
+        "path": "M6 4h12q4 0 4 4v8q0 4-4 4H6q-4 0-4-4V8q0-4 4-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "circle": [
+      {
+        "path": "M12 2a10 10 0 1 0 .01 0",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "pen": [
+      {
+        "path": "M3 21l1-6L16 3q2-2 4 0t0 4L8 20z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M5 15l4 4M14 5l5 5",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "highlighter": [
+      {
+        "path": "M4 20l3-5 9-12q1-2 3 0l3 3-11 15H4z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M8 14l6 5M3 22h12",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "numbered": [
+      {
+        "path": "M12 2a10 10 0 1 0 .01 0",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M10 9l2-1v9M10 17h4",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ],
+    "magnifier": [
+      {
+        "path": "M10 2a8 8 0 1 0 .01 0M16 15l6 6-2 2-6-6z",
+        "fill": true,
+        "opacity": 0.23
+      },
+      {
+        "path": "M10 4a6 6 0 1 0 0 12a6 6 0 1 0 0-12zM7 10h6M10 7v6",
+        "fill": false,
+        "stroke": 1.95,
+        "opacity": 1
+      }
+    ]
+  }
+}

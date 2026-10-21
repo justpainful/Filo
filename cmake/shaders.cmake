@@ -1,0 +1,7 @@
+filo_shader(wheel_vs   src/gfx/shaders/wheel.hlsl VSMain vs_5_0)
+filo_shader(wheel_ps   src/gfx/shaders/wheel.hlsl PSMain ps_5_0)
+filo_shader(blur_h_ps  src/gfx/shaders/blur.hlsl  PSBlurH ps_5_0)
+filo_shader(blur_v_ps  src/gfx/shaders/blur.hlsl  PSBlurV ps_5_0)
+filo_shader(blur_vs    src/gfx/shaders/blur.hlsl  VSMain vs_5_0)
+filo_shader(liquid_mask_vs src/gfx/shaders/liquid_mask.hlsl VSMain vs_5_0)
+filo_shader(liquid_mask_ps src/gfx/shaders/liquid_mask.hlsl PSMain ps_5_0)

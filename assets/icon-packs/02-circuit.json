@@ -1,0 +1,542 @@
+{
+  "schema": 1,
+  "id": "circuit",
+  "name": "Circuit",
+  "description": "Signal and structure. Square terminals, precise routes and open geometry.",
+  "round": false,
+  "icons": {
+    "compress": [
+      {
+        "path": "M3 3h6v2H5v4H3zM15 19h4v-4h2v6h-6zM6 6l4 4M6 10h4V6M18 18l-4-4M14 18v-4h4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "metadata": [
+      {
+        "path": "M4 3h12l4 4v14H4zM16 3v4h4M7 10h2M11 10h6M7 14h2M11 14h6M7 18h2M11 18h4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "edit": [
+      {
+        "path": "M3 6h8M15 6h6M3 12h3M10 12h11M3 18h11M18 18h3M11 4h4v4h-4zM6 10h4v4H6zM14 16h4v4h-4z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "annotate": [
+      {
+        "path": "M3 4h15v5M3 4v16h16v-8M8 16v-4l9-9 4 4-9 9zM15 5l4 4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "addbg": [
+      {
+        "path": "M3 5h18v14H3zM3 15l5-5 5 5 3-3 5 5M7 8h2M16 3v5M13.5 5.5h5",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "crop": [
+      {
+        "path": "M7 2v15h15M2 7h15v15M10 10h4v4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "redact": [
+      {
+        "path": "M3 4h18v16H3zM6 8h12M6 12h12M6 16h7M2 2l20 20",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "trim": [
+      {
+        "path": "M3 4h4v4H3zM3 16h4v4H3zM7 6h3l8 12h3M7 18h3l8-12h3M12 3v3M12 18v3",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "speed": [
+      {
+        "path": "M3 19V9l6-6h6l6 6v10M6 19h12M12 15l5-6M10 15h4M6 10l2 2M16 5l-1 3",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "join": [
+      {
+        "path": "M2 6h7v12H2zM15 6h7v12h-7zM9 12h6M11 9l3 3-3 3",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "frames": [
+      {
+        "path": "M3 8h13v13H3zM8 3h13v13M6 12h7M6 16h7M11 6h7",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "split": [
+      {
+        "path": "M12 2v20M9 12H3M6 9l-3 3 3 3M15 12h6M18 9l3 3-3 3M10 5h4M10 19h4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "normalize": [
+      {
+        "path": "M3 8v8M7 5v14M11 10v4M15 3v18M19 9v6M2 12h20",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "visualizer": [
+      {
+        "path": "M2 12h4V5h4v14h4V8h4v4h4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "channels": [
+      {
+        "path": "M3 3h7v18H3zM14 3h7v18h-7zM5 9h3M5 12h3M5 15h3M16 9h3M16 12h3M16 15h3",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "bleep": [
+      {
+        "path": "M3 8h4l5-4v16l-5-4H3zM16 6h5v12h-5zM16 10h5M16 14h5",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "merge": [
+      {
+        "path": "M2 4h6v5H2zM2 15h6v5H2zM8 6.5h4V17.5H8M12 12h4M16 9h6v6h-6z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "organize": [
+      {
+        "path": "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7zM10 6h4M6 10v4M18 10v4M10 18h4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "share": [
+      {
+        "path": "M12 15V3M8 7l4-4 4 4M4 11v10h16V11M7 17h10",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "paperclip": [
+      {
+        "path": "M7 17V6l3-3h8l3 3v12l-3 3H6l-3-3V8M11 16V7h5v9h-5",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "float": [
+      {
+        "path": "M3 4h13v10H3zM8 9h13v11H8zM13 14h4M15 12v4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "copy": [
+      {
+        "path": "M3 3h12v4M3 3v12h4M8 8h13v13H8zM11 12h7M11 16h7",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "move": [
+      {
+        "path": "M3 7V3h4M17 3h4v4M3 17v4h4M21 17v4h-4M5 12h14M8 9l-3 3 3 3M16 9l3 3-3 3",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "copypath": [
+      {
+        "path": "M3 3h6v6H3zM15 15h6v6h-6zM9 6h9v9M6 9v9h9",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "terminal": [
+      {
+        "path": "M2 4h20v16H2zM2 8h20M5 6h1M8 6h1M5 11l3 3-3 3M11 17h6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "convert": [
+      {
+        "path": "M2 8h18M16 4l4 4-4 4M22 16H4M8 12l-4 4 4 4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "extract": [
+      {
+        "path": "M3 3h18v5H3zM5 8v13h14V8M12 11v7M9 15l3 3 3-3",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "archive": [
+      {
+        "path": "M3 3h18v5H3zM5 8v13h14V8M10 11h4v3h-4z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "qr": [
+      {
+        "path": "M2 2h8v8H2zM14 2h8v8h-8zM2 14h8v8H2zM5 5h2v2H5zM17 5h2v2h-2zM5 17h2v2H5zM14 14h3v3h5v5h-4M14 19v3M21 14v2",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "removeaudio": [
+      {
+        "path": "M3 8h4l5-4v16l-5-4H3zM16 8l6 8M22 8l-6 8",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "rotate": [
+      {
+        "path": "M4 17V7l4-4h9l4 4v10l-4 4h-5M3 11h5M3 11V6M9 7v10h7V7z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "trash": [
+      {
+        "path": "M4 6h16M8 6V3h8v3M6 6v15h12V6M10 10v7M14 10v7",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "play": [
+      {
+        "path": "M6 3l15 9-15 9z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "pause": [
+      {
+        "path": "M5 3h5v18H5zM14 3h5v18h-5z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "stop": [
+      {
+        "path": "M4 4h16v16H4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "close": [
+      {
+        "path": "M4 4l16 16M20 4L4 20",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "reset": [
+      {
+        "path": "M4 10V6l3-3h10l4 4v10l-4 4H8l-4-4M4 4v6h6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "zoom": [
+      {
+        "path": "M3 3h12v12H3zM15 15l6 6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "chevronup": [
+      {
+        "path": "M4 16V12l8-8 8 8v4l-8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevrondown": [
+      {
+        "path": "M4 8v4l8 8 8-8V8l-8 8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevronleft": [
+      {
+        "path": "M16 4h-4l-8 8 8 8h4l-8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "chevronright": [
+      {
+        "path": "M8 4h4l8 8-8 8H8l8-8z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "folder": [
+      {
+        "path": "M2 5h7l3 3h10v13H2zM2 11h20",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "image": [
+      {
+        "path": "M2 4h20v16H2zM2 16l6-7 6 6 3-3 5 5M16 7h3v3h-3z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "video": [
+      {
+        "path": "M2 4h20v16H2zM6 4v16M18 4v16M2 8h4M2 16h4M18 8h4M18 16h4M10 9l5 3-5 3z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "audio": [
+      {
+        "path": "M4 5h16v14H4zM7 9v6M10 7v10M13 10v4M16 8v8",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "document": [
+      {
+        "path": "M4 2h11l5 5v15H4zM15 2v5h5M7 11h10M7 15h10M7 19h6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "check": [
+      {
+        "path": "M3 12l6 6L21 6M3 17v4h4M17 3h4v4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "warning": [
+      {
+        "path": "M9 3h6l7 14v4H2v-4zM12 8v6M11 17h2",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "more": [
+      {
+        "path": "M3 10h4v4H3zM10 10h4v4h-4zM17 10h4v4h-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "add": [
+      {
+        "path": "M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "remove": [
+      {
+        "path": "M3 10h18v4H3z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "grip": [
+      {
+        "path": "M6 4h4v4H6zM14 4h4v4h-4zM6 10h4v4H6zM14 10h4v4h-4zM6 16h4v4H6zM14 16h4v4h-4z",
+        "fill": true,
+        "opacity": 1
+      }
+    ],
+    "mono": [
+      {
+        "path": "M4 4h16v16H4zM12 4v16M12 8h4M12 12h4M12 16h4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "pin": [
+      {
+        "path": "M7 3h10v3h-2v5l3 3v2H6v-2l3-3V6H7zM12 16v6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "settings": [
+      {
+        "path": "M2 4h20v16H2zM6 8h12M6 12h12M6 16h12M9 6v4M15 10v4M10 14v4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "star": [
+      {
+        "path": "M12 2l3 7h7l-6 5 2 8-6-5-6 5 2-8-6-5h7z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "swap": [
+      {
+        "path": "M6 3L2 7l4 4M2 7h17v4M18 13l4 4-4 4M22 17H5v-4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "layers": [
+      {
+        "path": "M3 3h13v13H3zM8 8h13v13H8zM8 12h8M12 8v8",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "text": [
+      {
+        "path": "M3 7V3h18v4M12 3v18M8 21h8",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "arrow": [
+      {
+        "path": "M3 21L21 3M8 3h13v13",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "line": [
+      {
+        "path": "M3 21L21 3M2 18v4h4M18 2h4v4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "rect": [
+      {
+        "path": "M3 5h18v14H3zM3 3v4M21 3v4M3 17v4M21 17v4",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "circle": [
+      {
+        "path": "M8 3h8l5 5v8l-5 5H8l-5-5V8z",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "pen": [
+      {
+        "path": "M3 21v-6L16 2l6 6L9 21zM13 5l6 6M3 15l6 6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "highlighter": [
+      {
+        "path": "M7 16l9-13 6 5-10 13H7zM4 21h13M12 9l6 5",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "numbered": [
+      {
+        "path": "M3 3h18v18H3zM9 9l3-2v10M9 17h6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ],
+    "magnifier": [
+      {
+        "path": "M3 3h12v12H3zM15 15l6 6M6 9h6M9 6v6",
+        "fill": false,
+        "stroke": 1.55,
+        "opacity": 1
+      }
+    ]
+  }
+}

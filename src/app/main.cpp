@@ -57,7 +57,7 @@ static int RenderWheelMode(int argc, wchar_t** argv) {
     else if (a == L"--radius" && i + 1 < argc) radius = (float)_wtof(argv[++i]);
     else if (a == L"--hover" && i + 1 < argc) hover = _wtoi(argv[++i]);
     else if (a == L"--icon-pack" && i + 1 < argc) { auto state=ds::Theme::Get().State(); state.iconPack=Narrow(argv[++i]); ds::Theme::Get().SetUserState(state); }
-    else if (a == L"--acrylic" || a == L"--soft-glass" || a == L"--liquid-glass") { auto state=ds::Theme::Get().State(); state.glassStyle=a==L"--acrylic"?2:a==L"--soft-glass"?1:0; ds::Theme::Get().SetUserState(state); }
+    else if (a == L"--acrylic" || a == L"--soft-glass" || a == L"--liquid-glass" || a == L"--glassy") { auto state=ds::Theme::Get().State(); state.glassStyle=a==L"--acrylic"?2:a==L"--soft-glass"?1:a==L"--glassy"?3:0; ds::Theme::Get().SetUserState(state); }
     else if (a == L"--light") { ds::ThemeState s = ds::Theme::Get().State(); s.mode = ds::ThemeMode::Light; ds::Theme::Get().SetUserState(s); }
     else if (a == L"--dark") { ds::ThemeState s = ds::Theme::Get().State(); s.mode = ds::ThemeMode::Dark; ds::Theme::Get().SetUserState(s); }
   }
@@ -225,6 +225,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       std::wstring a = argv[i];
       if (a == L"--dark") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Dark; ds::Theme::Get().SetUserState(ts); }
       else if (a == L"--light") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Light; ds::Theme::Get().SetUserState(ts); }
+      else if (a == L"--glassy") { ds::ThemeState ts = ds::Theme::Get().State(); ts.glassStyle = 3; ds::Theme::Get().SetUserState(ts); }
       else if (a == L"--at" && i + 1 < argc) { swscanf_s(argv[++i], L"%ld,%ld", &toolAt.x, &toolAt.y); haveAt = true; }
       else files.emplace_back(a);
     }

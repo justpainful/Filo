@@ -41,7 +41,7 @@ struct Settings {
   // Appearance
   int theme = 1;                 // 0 system, 1 light (default: matches the reference), 2 dark
   std::string iconPack = "classic"; // Stable plugin ID; existing users retain the original icons.
-  int glassStyle = 0;             // 0 Liquid Glass, 1 Soft Glass (0.1.2 material), 2 Windows Acrylic
+  int glassStyle = 0;             // 0 Liquid Glass, 1 Soft Glass (0.1.2 material), 2 Windows Acrylic, 3 Glassy UI
   float glassReflections = 0.65f;
   float glassRefraction = 1.0f;
   float acrylicTransparency = .85f; // 0 opaque, 1 maximum colour transfer

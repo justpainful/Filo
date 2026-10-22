@@ -141,6 +141,14 @@ void DialogWindow::RecaptureGlass() { ApplyBlur(); }
 
 // The visible app uses a compositor-owned host backdrop, sampled before Filo is
 // drawn. The bitmap path exists only for deterministic, hidden reference renders.
+static void ApplyGlassyInk(Palette& p) {
+  // glassyui --lg-foreground / --lg-muted-foreground
+  const bool d = Theme::Get().IsDark();
+  p.text = d ? Color::Hex(0xF5F5F7) : Color::Hex(0x222224);
+  p.textSecondary = d ? Color::Hex(0xE5E5EA, .86f) : Color::Hex(0x505055);
+  p.textTertiary = d ? Color::Hex(0xE5E5EA, .62f) : Color::Hex(0x505055, .82f);
+}
+
 void DialogWindow::ApplyBlur() {
   if (!Valid()) return;
   SetBlurBehind(-1);
@@ -153,6 +161,8 @@ void DialogWindow::ApplyBlur() {
     if (SetLiveBackdrop(bounds, radius * sc, Theme::Get().IsDark(), intensity)) {
       back_ = {}; backBmp_.Reset();
       dyn_ = Theme::Get().Colors();
+      if (Theme::Get().State().glassStyle == 3) ApplyGlassyInk(dyn_);
+      else
       if (!Theme::Get().IsDark()) {
         dyn_.textSecondary = Color::Hex(0x25282F);
         dyn_.textTertiary = dyn_.textSecondary;
@@ -169,13 +179,23 @@ void DialogWindow::ApplyBlur() {
 void DialogWindow::CaptureGlass() {
   const wchar_t* testImage = _wgetenv(L"FILO_TEST_BACKDROP");
   if (!Valid() || !testImage) return;
-  const float sigma = ds::glass::dialogBlurDip * (Dpi() / 96.f);
+  const bool glassy = Theme::Get().State().glassStyle == 3;
+  const float sigma = (glassy ? 3.f : ds::glass::dialogBlurDip) * (Dpi() / 96.f);
   gfx::BackdropImage img;
   std::vector<uint8_t> tmp; int iw = 0, ih = 0;
   if (!gfx::LoadBgra(testImage, tmp, iw, ih) || !gfx::BackdropFromImage(testImage, RECT{0, 0, iw, ih}, sigma, img)) return;
   for (auto& px : img.blurred) {
     Color bg(((px >> 16) & 255) / 255.f, ((px >> 8) & 255) / 255.f, (px & 255) / 255.f);
-    const Color c = ds::FrostedBackdrop(bg, Theme::Get().IsDark(), Theme::Get().EffectiveGlass());
+    Color c = ds::FrostedBackdrop(bg, Theme::Get().IsDark(), Theme::Get().EffectiveGlass());
+    if (glassy) {
+      // glassyui slab: saturate(1.8 dark / 1.6 light) then brightness(.38 dark / 1 light)
+      const bool d = Theme::Get().IsDark();
+      const float s = d ? 1.8f : 1.6f, k = d ? .38f : 1.f;
+      auto cl = [](float v) { return std::clamp(v, 0.f, 1.f); };
+      c = Color(cl(k * ((.213f + .787f * s) * bg.r + (.715f - .715f * s) * bg.g + (.072f - .072f * s) * bg.b)),
+                cl(k * ((.213f - .213f * s) * bg.r + (.715f + .285f * s) * bg.g + (.072f - .072f * s) * bg.b)),
+                cl(k * ((.213f - .213f * s) * bg.r + (.715f - .715f * s) * bg.g + (.072f + .928f * s) * bg.b)));
+    }
     px = 0xFF000000u | (uint32_t)(c.b * 255 + 0.5f) | ((uint32_t)(c.g * 255 + 0.5f) << 8) | ((uint32_t)(c.r * 255 + 0.5f) << 16);
   }
   back_ = std::move(img); backBmp_.Reset(); UpdateGlassPalette(); Invalidate();
@@ -184,6 +204,7 @@ void DialogWindow::CaptureGlass() {
 void DialogWindow::UpdateGlassPalette() {
   // Theme selection is explicit; desktop luminance must never flip text polarity.
   dyn_ = Theme::Get().Colors();
+  if (Theme::Get().State().glassStyle == 3) ApplyGlassyInk(dyn_);
   dynValid_ = back_.validBlur();
 }
 
@@ -221,12 +242,16 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
 
   const Rect body = BodyRect();
   const float R = opts_.cornerRadius > 0 ? opts_.cornerRadius : dialog::cornerRadius;
-  if (opts_.glassBody) painter_.Shadow(body, R, dialog::shadowBlur, Color(0, 0, 0, dialog::shadowAlpha * 0.75f), 10);
+  if (opts_.glassBody) {
+    if (Theme::Get().State().glassStyle == 3 && (liveGlass || haveGlass)) painter_.GlassyShadow(body, R, Theme::Get().IsDark());
+    else painter_.Shadow(body, R, dialog::shadowBlur, Color(0, 0, 0, dialog::shadowAlpha * 0.75f), 10);
+  }
   if (liveGlass) {
     painter_.ClearRoundRect(body, R); // keep the outer shadow out of the transparent reading surface
     // The composition visual below this swap chain supplies the live material.
     if (Theme::Get().State().glassStyle == 0) painter_.LiquidBody(body,R,Theme::Get().IsDark(),glass);
     else if (Theme::Get().State().glassStyle == 2) painter_.AcrylicBody(body,R,Theme::Get().IsDark(),glass);
+    else if (Theme::Get().State().glassStyle == 3) painter_.GlassyBody(body,R,Theme::Get().IsDark());
     else painter_.FillRoundRectGradient(body, R, Color(1, 1, 1, Theme::Get().IsDark() ? 0.01f : 0.04f), Color(1, 1, 1, 0.f));
   } else if (haveGlass) {
     if (!backBmp_) {
@@ -241,7 +266,8 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
     painter_.PushClipRoundRect(body, R);
     if (backBmp_) painter_.Bitmap(backBmp_.Get(), dst);
     // Subtle vertical sheen, clipped to the same body as the material.
-    painter_.FillRoundRectGradient(body, R, Color(1, 1, 1, Theme::Get().IsDark() ? 0.01f : 0.07f), Color(1, 1, 1, 0.f));
+    if (Theme::Get().State().glassStyle == 3) painter_.GlassyBody(body, R, Theme::Get().IsDark());
+    else painter_.FillRoundRectGradient(body, R, Color(1, 1, 1, Theme::Get().IsDark() ? 0.01f : 0.07f), Color(1, 1, 1, 0.f));
     painter_.PopClip();
   } else if (opts_.glassBody) {
     // opaque fallback (reduce transparency / high contrast / capture failed)
@@ -267,7 +293,9 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
   if (opts_.glassBody) painter_.PopClip();
   if (opts_.glassBody) {
     // border last, over everything
-    if (liveGlass && Theme::Get().State().glassStyle == 0) {
+    if ((liveGlass || haveGlass) && Theme::Get().State().glassStyle == 3) {
+      painter_.GlassyRim(body,R,Theme::Get().IsDark());
+    } else if (liveGlass && Theme::Get().State().glassStyle == 0) {
       painter_.LiquidRim(body,R,Theme::Get().IsDark(),Theme::Get().State().glassReflections*glass);
     } else {
     painter_.StrokeRoundRect(body.Inset(-0.5f), R + 0.5f, Color(0, 0, 0, 0.20f), 1.f);          // thin dark outline (as in the reference edge)

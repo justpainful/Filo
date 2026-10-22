@@ -143,8 +143,9 @@ bool LiveComposition::Configure(const RECT& r, float radius, bool dark, float in
   const char* stage = "setup";
   try {
     const auto& theme=ds::Theme::Get().State();
-    if(theme.glassStyle==0 || theme.glassStyle==2) {
+    if(theme.glassStyle==0 || theme.glassStyle==2 || theme.glassStyle==3) {
       const bool acrylic=theme.glassStyle==2;
+      const bool glassy=theme.glassStyle==3;   // Glassy UI slab (alexburlis/glassyui, MIT): see docs/GLASSY-UI.md
       LiquidShape shape{};
       if(requestedShape) shape=*requestedShape;
       else {
@@ -156,12 +157,12 @@ bool LiveComposition::Configure(const RECT& r, float radius, bool dark, float in
       if(acrylic)shape.refractionPx=0.f;
       stage="optical-masks";
       if(!p.masks.Update(p.width,p.height,shape)) {Disable();return false;}
-      if(!p.liquid || p.material!=theme.glassStyle || (acrylic&&(p.dark!=dark||p.acrylicSigma!=theme.acrylicBlur)) || p.maskWidth!=p.width || p.maskHeight!=p.height || p.opticalScale!=shape.dpiScale || p.opticalShift!=shape.refractionPx) {
+      if(!p.liquid || p.material!=theme.glassStyle || ((acrylic&&(p.dark!=dark||p.acrylicSigma!=theme.acrylicBlur))||(glassy&&p.dark!=dark)) || p.maskWidth!=p.width || p.maskHeight!=p.height || p.opticalScale!=shape.dpiScale || p.opticalShift!=shape.refractionPx) {
         p.opticalRoot.Children().RemoveAll();
         const float shift=shape.refractionPx*shape.dpiScale;
         const float dx[5]={0,-shift,shift,0,0},dy[5]={0,0,0,-shift,shift};
         auto interop=p.compositor.as<ABI::Windows::UI::Composition::ICompositorInterop>();
-        auto live=Node(CLSID_D2D1GaussianBlur,{foundation::PropertyValue::CreateSingle((acrylic?theme.acrylicBlur:14.f)*shape.dpiScale),foundation::PropertyValue::CreateUInt32(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED),foundation::PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD)},{comp::CompositionEffectSourceParameter(L"desktop")});
+        auto live=Node(CLSID_D2D1GaussianBlur,{foundation::PropertyValue::CreateSingle((acrylic?theme.acrylicBlur:glassy?3.f:14.f)*shape.dpiScale),foundation::PropertyValue::CreateUInt32(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED),foundation::PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD)},{comp::CompositionEffectSourceParameter(L"desktop")});
         if(acrylic) {
           // Windows Acrylic ingredients: live host blur, desaturation, exclusion,
           // with tint and stable grain in the foreground, clipped to Filo's geometry.
@@ -181,10 +182,32 @@ bool LiveComposition::Configure(const RECT& r, float radius, bool dark, float in
             live=Node(CLSID_D2D1Blend,{foundation::PropertyValue::CreateUInt32(D2D1_BLEND_MODE_LUMINOSITY)},{floor,live});
           }
         }
+        effects::IGraphicsEffectSource rimLive{nullptr};
+        if(glassy) {
+          // Glassy UI slab (glass-dialog / glass-popover): backdrop-filter blur(--lg-slab-blur=3px) saturate(--lg-glass-sat) brightness(--lg-slab-brightness).
+          // Dark: sat 1.8, body brightness .38, rim brightness .46. Light: sat 1.6, brightness 1 (values from styles/liquid.css).
+          auto slab=[&](float brightness) {
+            const float s=dark?1.8f:1.6f,b=brightness;
+            auto blurred=Node(CLSID_D2D1GaussianBlur,{foundation::PropertyValue::CreateSingle(3.f*shape.dpiScale),foundation::PropertyValue::CreateUInt32(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED),foundation::PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD)},{comp::CompositionEffectSourceParameter(L"desktop")});
+            // CSS saturate() matrix (luma .213/.715/.072) folded with brightness(), in D2D's row-vector layout.
+            return Node(CLSID_D2D1ColorMatrix,{Floats({b*(.213f+.787f*s),b*(.213f-.213f*s),b*(.213f-.213f*s),0,
+                                                       b*(.715f-.715f*s),b*(.715f+.285f*s),b*(.715f-.715f*s),0,
+                                                       b*(.072f-.072f*s),b*(.072f-.072f*s),b*(.072f+.928f*s),0,
+                                                       0,0,0,1, 0,0,0,0}),
+                                                foundation::PropertyValue::CreateUInt32(D2D1_COLORMATRIX_ALPHA_MODE_PREMULTIPLIED),foundation::PropertyValue::CreateBoolean(true)},{blurred});
+          };
+          live=slab(dark?.38f:1.f);
+          rimLive=slab(dark?.46f:1.f);
+        }
         auto liveBrush=p.compositor.CreateEffectFactory(live.as<effects::IGraphicsEffect>()).CreateBrush();
         liveBrush.SetSourceParameter(L"desktop",p.compositor.CreateHostBackdropBrush());
+        comp::CompositionEffectBrush rimBrush{nullptr};
+        if(glassy) {
+          rimBrush=p.compositor.CreateEffectFactory(rimLive.as<effects::IGraphicsEffect>()).CreateBrush();
+          rimBrush.SetSourceParameter(L"desktop",p.compositor.CreateHostBackdropBrush());
+        }
         for(int k=0;k<(acrylic?1:5);++k) {
-          auto child=p.compositor.CreateSpriteVisual();child.Size({(float)p.width,(float)p.height});child.Brush(liveBrush);
+          auto child=p.compositor.CreateSpriteVisual();child.Size({(float)p.width,(float)p.height});child.Brush(glassy&&k>0?rimBrush:liveBrush);
           auto layer=p.compositor.CreateLayerVisual();layer.Size({(float)p.width,(float)p.height});layer.Children().InsertAtTop(child);
           auto moved=Node(CLSID_D2D12DAffineTransform,{foundation::PropertyValue::CreateUInt32(D2D1_2DAFFINETRANSFORM_INTERPOLATION_MODE_LINEAR),foundation::PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD),Floats({1,0,0,1,-dx[k],-dy[k]}),foundation::PropertyValue::CreateSingle(0.f)},{comp::CompositionEffectSourceParameter(L"Backdrop")});
           auto masked=Node(CLSID_D2D1AlphaMask,{}, {moved,comp::CompositionEffectSourceParameter(L"mask")});

@@ -29,3 +29,5 @@ UI revision **0.1.4**: three independent icon plugins (**Pebble**, **Circuit**, 
 UI revision **0.1.5**: responsive Float with persistent close/remove/clear controls, independent Acrylic transparency and blur, and live circular glass close buttons for tools. [Implementation and verification](docs/CONTROLS-2026-10-21.md). Installer: `dist/Filo-Setup-0.1.5.exe`.
 
 UI revision **0.1.6**: the circular glass close button is now on every window (Settings, gallery, progress card, Float, tools). Installer: `dist/Filo-Setup-0.1.6.exe`.
+
+UI revision **0.1.7**: **Glassy UI** is a new optional glass material (Settings > Appearance), using the glass recipe of the open-source glassyui library. Liquid Glass stays the default. [Details and limits](docs/GLASSY-UI.md). Installer: `dist/Filo-Setup-0.1.7.exe`.

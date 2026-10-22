@@ -60,3 +60,8 @@ The installer must include `icon-packs/01-pebble.json`, `02-circuit.json`, and `
 ## 0.1.6 close button everywhere
 
 Settings, the widget gallery and the progress card now use the same circular glass close control as the tool windows (28 DIP, top left, hover and pressed states, live local blur when the host backdrop is available). `DialogOptions::glassCloseButton` defaults to true. The progress card's button is aligned with it (28 DIP, never mirrored in RTL). Package: `dist/Filo-Setup-0.1.6.exe` (staged in `build/stage-0.1.6`; the running older stages were not touched). Checked by rendering Settings, the gallery, Float and the progress card offscreen; not clicked in a live session.
+
+
+## 0.1.7 Glassy UI material
+
+Adds the optional Glassy UI glass style (see GLASSY-UI.md). `glassStyle` now accepts 0..3; older settings files are unaffected. The glassyui MIT notice is part of LICENSES.md, which the installer ships as THIRD-PARTY-NOTICES.md. Package: `dist/Filo-Setup-0.1.7.exe` (stage `build/stage-0.1.7`).

@@ -206,7 +206,7 @@ void SettingsWindow::Appearance(Ui& ui, const Rect& vp, Settings& s, float& y) {
   r.Heading(L"Glass");
   {
     Rect row = r.Label(L"Glass style"); ui.PushId(0x61A56);
-    s.glassStyle = ui.Segmented(r.Right(row, 300), {L"Liquid Glass", L"Soft Glass", L"Acrylic"}, std::clamp(s.glassStyle, 0, 2));
+    s.glassStyle = ui.Segmented(r.Right(row, 400), {L"Liquid Glass", L"Soft Glass", L"Acrylic", L"Glassy UI"}, std::clamp(s.glassStyle, 0, 3));
     ui.PopId();
   }
   if (s.glassStyle == 2) {
@@ -224,7 +224,12 @@ void SettingsWindow::Appearance(Ui& ui, const Rect& vp, Settings& s, float& y) {
     row = r.Label(L"Edge refraction"); ui.PushId(0x61A58);
     ui.Slider(r.Right(row, 190), s.glassRefraction, 0.f, 1.f, .05f, 1.f); ui.PopId();
   }
-  if (s.glassStyle != 2) {
+  if (s.glassStyle == 3) {
+    Rect row = r.Label(L"Edge refraction"); ui.PushId(0x61A59);
+    ui.Slider(r.Right(row, 190), s.glassRefraction, 0.f, 1.f, .05f, 1.f); ui.PopId();
+    r.Hint(L"Glassy UI uses the glass slab of the open-source glassyui library (MIT). Liquid Glass and the other materials stay available.");
+  }
+  if (s.glassStyle != 2 && s.glassStyle != 3) {
     Rect row = r.Label(L"Glass intensity");
     float v = s.glassIntensity;
     ui.PushId(0x61A55);

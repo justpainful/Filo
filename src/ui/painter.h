@@ -60,6 +60,10 @@ class Painter {
   void AcrylicBody(const Rect& r, float radius, bool dark, float intensity);
   void LiquidBody(const Rect& r, float radius, bool dark, float intensity);
   void LiquidRim(const Rect& r, float radius, bool dark, float reflections);
+  // Glassy UI (alexburlis/glassyui, MIT) dialog slab: raised shadow, tint + sheen over the live backdrop, and the glass rim / specular ring.
+  void GlassyShadow(const Rect& r, float radius, bool dark);
+  void GlassyBody(const Rect& r, float radius, bool dark);
+  void GlassyRim(const Rect& r, float radius, bool dark);
   void FillCircle(float cx, float cy, float radius, const ds::Color& c);
   void StrokeCircle(float cx, float cy, float radius, const ds::Color& c, float width = 1.f);
   void Polyline(const std::vector<std::pair<float, float>>& pts, const ds::Color& c, float width);   // one stroked path, round caps/joins (no alpha build-up at joints)

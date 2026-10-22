@@ -132,6 +132,65 @@ void Painter::LiquidRim(const Rect& r, float radius, bool dark, float strength) 
     {.52f,D2D1::ColorF(1,1,1,.055f*k)}, {.72f,D2D1::ColorF(1,1,1,.10f*k)}, {1,D2D1::ColorF(1,1,1,.52f*k)}};
   stroke(.85f,1.2f,lip,5);
 }
+// ---- Glassy UI material -------------------------------------------------------------------------------------------------
+// Values are the ones in the glassyui library (styles/liquid.css) for a dialog slab (GlassPanel preset "prominent", raised, lens):
+//   --lg-slab-tint        dark rgb(28 28 30 / .30)   light rgb(255 255 255 / .80)
+//   --lg-sheen-alpha      dark .05                    light .08          (linear-gradient 180deg white -> transparent 45%)
+//   --lg-shadow-raised    dark 0 2px 6px .20, 0 30px 60px -18px .55    light 0 2px 6px .06, 0 28px 56px -18px .26
+//   rim:   --lg-glow-alpha .06/.14, --lg-reflex-light .42/1, --lg-reflex-dark 1.4/.8, --lg-rim-ca-alpha .06/.05 (blue 80 160 255 / pink 255 90 150, 2px)
+//   ring:  --lg-specular-peak .45/.70, --lg-specular-floor .07/.35, --lg-specular-counter .22/.55, --lg-rim-width 1px
+// The 30 dip window margin cannot hold the 60px blur of the second shadow, so it is shortened to fit; nothing else is changed.
+void Painter::GlassyShadow(const Rect& r, float radius, bool dark) {
+  Shadow(r, radius, 6.f, Color(0, 0, 0, dark ? .20f : .06f), 2.f);
+  Shadow(r.Inset(10.f), std::max(0.f, radius - 10.f), 30.f, Color(0, 0, 0, dark ? .55f : .26f), 11.f);
+}
+void Painter::GlassyBody(const Rect& r, float radius, bool dark) {
+  const Color tint = dark ? Color(28 / 255.f, 28 / 255.f, 30 / 255.f, .30f) : Color(1, 1, 1, .80f);
+  FillRoundRect(r, radius, tint);
+  const float sheen = dark ? .05f : .08f;
+  D2D1_GRADIENT_STOP stops[] = {{0, D2D1::ColorF(1, 1, 1, sheen)}, {.45f, D2D1::ColorF(1, 1, 1, 0)}, {1, D2D1::ColorF(1, 1, 1, 0)}};
+  ComPtr<ID2D1GradientStopCollection> gc; ComPtr<ID2D1LinearGradientBrush> b;
+  if (SUCCEEDED(dc_->CreateGradientStopCollection(stops, 3, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP, &gc)) &&
+      SUCCEEDED(dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(r.x, r.y), D2D1::Point2F(r.x, r.bottom())), gc.Get(), &b)))
+    dc_->FillRoundedRectangle(D2D1::RoundedRect(r.D2D(), radius, radius), b.Get());
+}
+void Painter::GlassyRim(const Rect& r, float radius, bool dark) {
+  const float glow = dark ? .06f : .14f, rimLight = dark ? .42f : 1.f, rimDark = dark ? 1.4f : .8f, ca = dark ? .06f : .05f;
+  const float rimAlpha = dark ? .05f : .109f;                              // .05 + light-strength*.12 + fresnel*.35 + specular*.32
+  auto stroke = [&](float inset, float width, const D2D1_GRADIENT_STOP* stops, UINT count, D2D1_POINT_2F p0, D2D1_POINT_2F p1) {
+    ComPtr<ID2D1GradientStopCollection> gc; ComPtr<ID2D1LinearGradientBrush> brush;
+    if (FAILED(dc_->CreateGradientStopCollection(stops, count, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP, &gc))) return;
+    if (FAILED(dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(p0, p1), gc.Get(), &brush))) return;
+    const Rect box = r.Inset(inset);
+    const float rr = std::max(0.f, radius - inset);
+    dc_->DrawRoundedRectangle(D2D1::RoundedRect(box.D2D(), rr, rr), brush.Get(), width);
+  };
+  const D2D1_POINT_2F tl{r.x, r.y}, br{r.right(), r.bottom()};
+  // inset 0 0 12px -4px white / glow: a soft glow hugging the inside of the edge
+  for (int i = 0; i < 6; ++i) {
+    const float t = i / 6.f;
+    StrokeRoundRect(r.Inset(1.f + i * 1.5f), std::max(0.f, radius - 1.f - i * 1.5f), Color(1, 1, 1, glow * (1 - t) * (1 - t) * .8f), 1.6f);
+  }
+  // inset -0.3px -1px 4px / inset -1.5px 2.5px 0 -2px / inset 0 3px 4px -2px : the shaded inner edge (black * rim-dark)
+  { D2D1_GRADIENT_STOP s[] = {{0, D2D1::ColorF(0, 0, 0, rimDark * .14f)}, {.30f, D2D1::ColorF(0, 0, 0, 0)}, {.62f, D2D1::ColorF(0, 0, 0, 0)}, {1, D2D1::ColorF(0, 0, 0, rimDark * .20f)}};
+    stroke(2.2f, 2.4f, s, 4, tl, br); }
+  // inset 1.5px 2.5px 1px -2px white * rim-light * .7 (top and left) and inset -1.5px -2px 1px -2px white * rim-light * .55 (bottom and right)
+  { D2D1_GRADIENT_STOP s[] = {{0, D2D1::ColorF(1, 1, 1, std::min(1.f, rimLight * .70f))}, {.45f, D2D1::ColorF(1, 1, 1, 0)}, {.55f, D2D1::ColorF(1, 1, 1, 0)}, {1, D2D1::ColorF(1, 1, 1, std::min(1.f, rimLight * .55f))}};
+    stroke(1.3f, 1.4f, s, 4, tl, br); }
+  // inset 0 0 3px white / --lg-rim-alpha
+  StrokeRoundRect(r.Inset(1.f), std::max(0.f, radius - 1.f), Color(1, 1, 1, rimAlpha), 2.f);
+  // chromatic aberration at the vertical edges: blue on the left, pink on the right (2px, 3px blur)
+  { D2D1_GRADIENT_STOP s[] = {{0, D2D1::ColorF(80 / 255.f, 160 / 255.f, 1, ca)}, {1, D2D1::ColorF(80 / 255.f, 160 / 255.f, 1, 0)}};
+    stroke(2.f, 2.4f, s, 2, D2D1::Point2F(r.x, r.cy()), D2D1::Point2F(r.x + 9.f, r.cy())); }
+  { D2D1_GRADIENT_STOP s[] = {{0, D2D1::ColorF(1, 90 / 255.f, 150 / 255.f, ca)}, {1, D2D1::ColorF(1, 90 / 255.f, 150 / 255.f, 0)}};
+    stroke(2.f, 2.4f, s, 2, D2D1::Point2F(r.right(), r.cy()), D2D1::Point2F(r.right() - 9.f, r.cy())); }
+  // specular ring (::after, 1px): linear-gradient(to bottom right, peak 0%, floor 32%, floor 68%, counter 100%)
+  { const float peak = dark ? .45f : .70f, floor = dark ? .07f : .35f, counter = dark ? .22f : .55f;
+    D2D1_GRADIENT_STOP s[] = {{0, D2D1::ColorF(1, 1, 1, peak)}, {.32f, D2D1::ColorF(1, 1, 1, floor)}, {.68f, D2D1::ColorF(1, 1, 1, floor)}, {1, D2D1::ColorF(1, 1, 1, counter)}};
+    stroke(.5f, 1.f, s, 4, tl, br); }
+  // hairline dark outline so the slab separates from bright backdrops
+  StrokeRoundRect(r.Inset(-.5f), radius + .5f, Color(0, 0, 0, dark ? .30f : .12f), .8f);
+}
 void Painter::StrokeCircle(float cx, float cy, float r, const Color& c, float w) { if (c.a > 0) dc_->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(cx, cy), r - w * 0.5f, r - w * 0.5f), Brush(c).Get(), w); }
 void Painter::Line(float x0, float y0, float x1, float y1, const Color& c, float w, bool round) {
   if (c.a <= 0) return;

@@ -377,7 +377,7 @@ void WheelWindow::OnRender(ID3D11RenderTargetView* rtv, ID3D11Texture2D* bb, int
   cb.backRect[3] = (float)std::max(backdrop_.h, 1);
   cb.lightDir[0] = -0.55f; cb.lightDir[1] = -0.83f;                 // light from the upper left
   cb.lightDir[2] = ds::glass::saturationBoost; cb.lightDir[3] = 1.f;
-  cb.optics[0]=HasLiveBackdrop()?(Theme::Get().State().glassStyle==0?1.f:Theme::Get().State().glassStyle==2?2.f:0.f):0.f;
+  cb.optics[0]=HasLiveBackdrop()?((Theme::Get().State().glassStyle==0||Theme::Get().State().glassStyle==3)?1.f:Theme::Get().State().glassStyle==2?2.f:0.f):0.f;
   cb.acrylic[0]=Theme::Get().State().acrylicTransparency;
   cb.optics[1]=Theme::Get().State().glassReflections;
   cb.optics[2]=Theme::Get().State().glassRefraction;cb.optics[3]=Scale();

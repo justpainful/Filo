@@ -4,7 +4,7 @@
 param(
   [string]$Config = "Release",
   [string]$Suffix = "_rel",
-  [ValidatePattern("^[0-9]+[.][0-9]+[.][0-9]+$")][string]$Version = "0.1.6",
+  [ValidatePattern("^[0-9]+[.][0-9]+[.][0-9]+$")][string]$Version = "0.1.7",
   [string]$FfmpegDir = ""
 )
 $ErrorActionPreference = "Stop"

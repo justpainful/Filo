@@ -64,7 +64,7 @@ Settings Settings::FromJson(const Json& j) {
   s.acrylicBlur=F("acrylicBlur",30.f);
   s.acrylicTransparency=std::isfinite(s.acrylicTransparency)?std::clamp(s.acrylicTransparency,0.f,1.f):.85f;
   s.acrylicBlur=std::isfinite(s.acrylicBlur)?std::clamp(s.acrylicBlur,0.f,48.f):30.f;
-  s.glassStyle = std::clamp(I("glassStyle", 0), 0, 2);
+  s.glassStyle = std::clamp(I("glassStyle", 0), 0, 3);
   s.glassReflections = std::clamp(F("glassReflections", .65f), 0.f, 1.f);
   s.glassRefraction = std::clamp(F("glassRefraction", 1.f), 0.f, 1.f);
   s.theme = std::clamp(I("theme", 1), 0, 2); s.glassIntensity = std::clamp(F("glassIntensity", 1.f), 0.f, 1.f);

@@ -143,8 +143,9 @@ bool LiveComposition::Configure(const RECT& r, float radius, bool dark, float in
   const char* stage = "setup";
   try {
     const auto& theme=ds::Theme::Get().State();
-    if(theme.glassStyle==0 || theme.glassStyle==2 || theme.glassStyle==3) {
+    if(theme.glassStyle==0 || theme.glassStyle==2 || theme.glassStyle==3 || theme.glassStyle==4) {
       const bool acrylic=theme.glassStyle==2;
+      const bool symbolic=theme.glassStyle==4;   // Symbolic Glass (menu / dialog material): see docs/SYMBOLIC-GLASS.md
       const bool glassy=theme.glassStyle==3;   // Glassy UI slab (alexburlis/glassyui, MIT): see docs/GLASSY-UI.md
       LiquidShape shape{};
       if(requestedShape) shape=*requestedShape;
@@ -157,12 +158,12 @@ bool LiveComposition::Configure(const RECT& r, float radius, bool dark, float in
       if(acrylic)shape.refractionPx=0.f;
       stage="optical-masks";
       if(!p.masks.Update(p.width,p.height,shape)) {Disable();return false;}
-      if(!p.liquid || p.material!=theme.glassStyle || ((acrylic&&(p.dark!=dark||p.acrylicSigma!=theme.acrylicBlur))||(glassy&&p.dark!=dark)) || p.maskWidth!=p.width || p.maskHeight!=p.height || p.opticalScale!=shape.dpiScale || p.opticalShift!=shape.refractionPx) {
+      if(!p.liquid || p.material!=theme.glassStyle || ((acrylic&&(p.dark!=dark||p.acrylicSigma!=theme.acrylicBlur))||((glassy||symbolic)&&p.dark!=dark)) || p.maskWidth!=p.width || p.maskHeight!=p.height || p.opticalScale!=shape.dpiScale || p.opticalShift!=shape.refractionPx) {
         p.opticalRoot.Children().RemoveAll();
         const float shift=shape.refractionPx*shape.dpiScale;
         const float dx[5]={0,-shift,shift,0,0},dy[5]={0,0,0,-shift,shift};
         auto interop=p.compositor.as<ABI::Windows::UI::Composition::ICompositorInterop>();
-        auto live=Node(CLSID_D2D1GaussianBlur,{foundation::PropertyValue::CreateSingle((acrylic?theme.acrylicBlur:glassy?3.f:14.f)*shape.dpiScale),foundation::PropertyValue::CreateUInt32(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED),foundation::PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD)},{comp::CompositionEffectSourceParameter(L"desktop")});
+        auto live=Node(CLSID_D2D1GaussianBlur,{foundation::PropertyValue::CreateSingle((acrylic?theme.acrylicBlur:glassy?3.f:symbolic?9.f:14.f)*shape.dpiScale),foundation::PropertyValue::CreateUInt32(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED),foundation::PropertyValue::CreateUInt32(D2D1_BORDER_MODE_HARD)},{comp::CompositionEffectSourceParameter(L"desktop")});
         if(acrylic) {
           // Windows Acrylic ingredients: live host blur, desaturation, exclusion,
           // with tint and stable grain in the foreground, clipped to Filo's geometry.
@@ -181,6 +182,10 @@ bool LiveComposition::Configure(const RECT& r, float radius, bool dark, float in
             auto floor=Node(CLSID_D2D1Blend,{foundation::PropertyValue::CreateUInt32(D2D1_BLEND_MODE_LIGHTEN)},{luminosity,Solid(.68f,.68f,.68f)});
             live=Node(CLSID_D2D1Blend,{foundation::PropertyValue::CreateUInt32(D2D1_BLEND_MODE_LUMINOSITY)},{floor,live});
           }
+        }
+        if(symbolic&&dark) {
+          // Symbolic menu / dialog material in the dark regime: the content behind passes dimmed (darkTransmission .38), hue kept, almost no white veil.
+          live=Node(CLSID_D2D1ColorMatrix,{Floats({.38f,0,0,0, 0,.38f,0,0, 0,0,.38f,0, 0,0,0,1, 0,0,0,0}),foundation::PropertyValue::CreateUInt32(D2D1_COLORMATRIX_ALPHA_MODE_PREMULTIPLIED),foundation::PropertyValue::CreateBoolean(true)},{live});
         }
         effects::IGraphicsEffectSource rimLive{nullptr};
         if(glassy) {

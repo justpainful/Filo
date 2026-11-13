@@ -58,6 +58,19 @@ const std::vector<std::wstring>& PreferredOutputOrder(Group g) {
   }
 }
 
+// The icon of a conversion target: what kind of file the sector produces.
+static std::string FormatIcon(const std::wstring& f) {
+  static const wchar_t* images[] = {L"jpg", L"jpeg", L"png", L"webp", L"heic", L"heif", L"avif", L"tiff", L"tif", L"bmp", L"gif", L"ico", L"svg", L"jxl"};
+  static const wchar_t* videos[] = {L"mp4", L"mov", L"mkv", L"webm", L"avi", L"wmv", L"m4v", L"flv", L"mpg", L"ogv"};
+  static const wchar_t* audios[] = {L"mp3", L"wav", L"flac", L"m4a", L"aac", L"ogg", L"opus", L"aiff", L"wma"};
+  static const wchar_t* archives[] = {L"zip", L"tar", L"gz", L"7z", L"rar", L"tgz", L"bz2", L"xz"};
+  for (auto* x : images) if (f == x) return "image";
+  for (auto* x : videos) if (f == x) return "video";
+  for (auto* x : audios) if (f == x) return "audio";
+  for (auto* x : archives) if (f == x) return "archive";
+  if (f == L"extract") return "extract";
+  return "document";            // pdf, docx, pptx, xlsx, epub, txt, md, html, rtf, odt, csv, srt ...
+}
 static std::wstring UpperFmt(std::wstring f) { CharUpperBuffW(f.data(), (DWORD)f.size()); return f; }
 
 Availability ComputeAvailability(const Selection& sel) {
@@ -91,7 +104,7 @@ Availability ComputeAvailability(const Selection& sel) {
         return (ia - order.begin()) < (ib - order.begin());
       });
       for (auto& o : common) {
-        WheelEntry e; e.id = L"convert:" + o; e.label = o == L"extract" ? L"Extract" : UpperFmt(o); e.enabled = true;
+        WheelEntry e; e.id = L"convert:" + o; e.label = o == L"extract" ? L"Extract" : UpperFmt(o); e.icon = FormatIcon(o); e.enabled = true;
         av.convert.push_back(e);
       }
       if (av.convert.empty()) av.convertEmptyReason = L"No conversions are available for this selection on this PC.";

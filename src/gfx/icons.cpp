@@ -144,6 +144,18 @@ const IconDef kIcons[] = {
   {"paperclip",  "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48", false},
   {"float",      "M5 8l7-5 7 5-7 5zM5 13l7 5 7-5", false},
   {"copy",       "M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM15 5.5V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h.5", false},
+  {"download", "M12 3v12M7.5 10.5L12 15l4.5-4.5M5 20h14", false},
+  {"clipboard", "M9 4h6v3H9zM7 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1", false},
+  {"sliders", "M4 7h9M17 7h3M4 17h3M11 17h9M15 4.5v5M9 14.5v5", false},
+  {"palette", "M12 3a9 9 0 1 0 0 18a3 3 0 0 0 3-3v-1a2 2 0 0 1 2-2h1a3 3 0 0 0 3-3a9 9 0 0 0-9-9zM8 11h.01M12 7.5h.01M16 11h.01", false},
+  {"link", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1", false},
+  {"keyboard", "M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10", false},
+  {"bell", "M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4", false},
+  {"globe", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18", false},
+  {"power", "M12 3v9M7 6.5a8 8 0 1 0 10 0", false},
+  {"eye", "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6z", false},
+  {"wheel",      "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM12 8.8a3.2 3.2 0 1 0 0 6.4a3.2 3.2 0 0 0 0-6.4zM12 8.8V3M14.8 10.4L19.8 7.5M9.2 10.4L4.2 7.5M9.2 13.6L4.2 16.5M12 15.2V21M14.8 13.6L19.8 16.5", false},
+  {"info", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18zM12 11v6M12 7.5h.01", false},
   {"move",       "M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4", false},
   {"copypath",   "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1", false},
   {"terminal",   "M3.5 5h17a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM6.5 10l3 2.5-3 2.5M12 15h5", false},
@@ -198,6 +210,22 @@ IconCache& IconCache::Get() { static IconCache* c = new IconCache(); return *c; 
 bool IconCache::Has(std::string_view name) const {
   for (auto& d : kIcons) if (name == d.name) return true;
   return false;
+}
+
+float IconCache::OpticalScale(std::string_view name) {
+  static std::unordered_map<std::string, float> memo;
+  const std::string key(name);
+  if (auto m = memo.find(key); m != memo.end()) return m->second;
+  float scale = 1.f;
+  for (auto& d : kIcons) if (name == d.name) {
+    if (auto geo = ParseSvgPath(d.path, d.filled)) {
+      D2D1_RECT_F b{};
+      if (SUCCEEDED(geo->GetBounds(nullptr, &b))) { const float m = std::max(b.right - b.left, b.bottom - b.top); if (m > 1.f) scale = std::clamp(18.f / m, 0.82f, 1.18f); }
+    }
+    break;
+  }
+  memo[key] = scale;
+  return scale;
 }
 
 void IconCache::Clear() { cache_.clear(); stroke_.Reset(); squareStroke_.Reset(); }

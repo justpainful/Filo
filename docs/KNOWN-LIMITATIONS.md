@@ -25,6 +25,23 @@ Written to be read before trusting a claim anywhere else in the docs. Engine-lev
 - The wheel's tool sectors include Windows-specific additions (Create PDF, Read QR, Collage), so an image shows more than the reference's seven.
 - Sector availability for videos asks `ffprobe` whether a clip has audio (cached); the first wheel opening for a new video can take a moment.
 
+## Crashes
+
+- A bug while a window **draws** no longer ends the app: the frame is dropped, a `fault-*.txt/.dmp` report is written to the logs folder, and the window keeps working (it is closed after three faulty frames in a row). Faults in other code (message handlers, worker threads, graphics drivers) are still fatal.
+- If the tray app does crash, it **starts itself again** (at most 3 times in a row, each within 2 minutes of the previous start) and writes the usual `crash-*.txt/.dmp`.
+- One crash seen once on 2026-10-21 (0.1.0) happened inside the NVIDIA Direct3D driver on a driver thread (`nvwgf2umx.dll`); its cause was not found and it has not recurred.
+
+## Link downloads
+
+- **Not verified with a real browser drag.** The drop card, the Right Ctrl rule and the window were tested with unit tests (`drag_*link*`) and hidden renders; a drag of a link out of Chrome/Edge/Firefox onto the card has not been watched on a screen. Each browser offers its own link formats; Filo reads `UniformResourceLocatorW`, `text/x-moz-url` and plain text.
+- TikTok photo slideshows have been tested against a live post. X photo posts have not yet been tested end to end. Site changes can break photo extraction.
+- Supported playlists show at most their first 80 entries. Some collections cannot be resolved, and probing long playlists can take time.
+- Right Ctrl no longer opens the Actions wheel for files dragged from apps other than File Explorer / the Desktop (it opens the link card). Left Ctrl is unchanged.
+- Playlists, channels and live streams are refused. Age-restricted, private and sign-in-only posts cannot be downloaded (Filo uses no account or cookies).
+- YouTube resolutions above what the site offers without a JavaScript runtime need Node.js on `PATH`.
+- Large downloads show overall progress per file (video and audio streams are counted together); the speed is not shown.
+- Sites can block or rate-limit requests; yt-dlp must be updated when a site changes. The bundled `tools\yt-dlp.exe` is replaced by installing a newer Filo.
+
 ## Formats
 
 - **Pages (`.pages`) output is not supported** (undocumented format). Reading a `.pages` file extracts the preview PDF stored inside it.

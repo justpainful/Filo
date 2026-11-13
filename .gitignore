@@ -34,3 +34,8 @@ spikes/*.obj
 .vscode/
 *.user
 Thumbs.db
+
+# compiled Python
+__pycache__/
+*.pyc
+build_all.log

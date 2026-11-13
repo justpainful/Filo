@@ -73,22 +73,36 @@ void SettingsWindow::PollCapture(Shortcut* target, bool needsKey) {
   *target = n; g_note.clear();
 }
 
-bool SettingsWindow::ShortcutRow(Ui& ui, const Rect& vp, float& y, const wchar_t* label, int slot, Shortcut& sc, bool needsKey) {
+namespace { const char* RowIcon(const wchar_t* text); }   // defined with the row helpers below
+
+bool SettingsWindow::ShortcutRow(Ui& ui, const Rect& vp, float& y, const wchar_t* label, int slot, Shortcut& sc, bool needsKey, int* rows) {
   const Palette& pal = ui.Pal(); Painter& p = ui.P();
-  Rect row{vp.x, y, vp.w, 34};
-  auto c = ui.Cols(row, {Flex(1), Fixed(176), Fixed(26)}, 8);
-  TextStyle ls; ls.size = dialog::bodyFontSize;
-  p.Text(c[0], label, pal.text, ls);
+  const bool dark = Theme::Get().IsDark();
+  const float rowH = 40, ctlH = 30;
+  Rect row{vp.x, y, vp.w, rowH};
+  if (rows && (*rows)++ > 0) p.FillRect({vp.x + (ui.Rtl() ? 0.f : 30.f), row.y - 0.5f, vp.w - 30.f, 1.f}, pal.text.WithAlpha(0.10f));
   const bool rec = capturing_ == slot;
+  std::wstring shown = rec ? (capMods_ || capVk_ ? Shortcut{capMods_, capVk_}.ToString() + L" ..." : std::wstring(L"Press the keys...")) : ShortcutText(sc);
+  TextStyle ts; ts.size = dialog::bodyFontSize; ts.align = Align::Center; ts.weight = 400;
+  // a compact key field sized to its content, on the same trailing edge as every other control
+  const float fw = std::max(92.f, p.TextWidth(shown, ts) + 32.f);
+  const Rect field = ui.Mirror({row.right() - fw, row.y + (rowH - ctlH) / 2, fw, ctlH}, row);
+  TextStyle ls; ls.size = dialog::bodyFontSize;
+  Rect lab = row;
+  if (const char* rowIcon = RowIcon(label)) {
+    p.Icon(rowIcon, ui.Rtl() ? row.right() - 11 : row.x + 11, row.cy(), 18, pal.textSecondary, 1.9f);
+    if (!ui.Rtl()) lab.x += 30;
+    lab.w -= 30;
+  }
+  lab.w = std::max(40.f, lab.w - fw - 12);
+  p.Text(lab, label, pal.text, ls);
   bool changed = false;
   ui.PushId(slot);
-  Interaction it = ui.Behavior(c[1], ui.Id("cap"), true, true);
+  Interaction it = ui.Behavior(field, ui.Id("cap"), true, true);
   const float a = ui.Anim(ui.Id("capa"), rec ? 1.f : (it.hot ? 0.5f : 0.f));
-  p.FillRoundRect(c[1], control::buttonRadius, Color(pal.text.r, pal.text.g, pal.text.b, 0.07f + 0.05f * a));
-  if (rec) p.StrokeRoundRect(c[1], control::buttonRadius, accent::base, 1.5f);
-  TextStyle ts; ts.size = dialog::bodyFontSize; ts.align = Align::Center; ts.weight = 500;
-  std::wstring shown = rec ? (capMods_ || capVk_ ? Shortcut{capMods_, capVk_}.ToString() + L" ..." : std::wstring(L"Press the keys...")) : ShortcutText(sc);
-  p.Text(c[1], shown, rec ? accent::base : pal.text, ts);
+  p.FillRoundRect(field, ctlH / 2, dark ? Color(1, 1, 1, 0.07f + 0.05f * a) : Color(0, 0, 0, 0.055f + 0.05f * a));
+  if (rec) p.StrokeRoundRect(field, ctlH / 2, accent::base, 1.5f);
+  p.Text(field, shown, rec ? accent::base : pal.text, ts);
   if (it.hot) ui.SetCursor((int)(intptr_t)IDC_HAND);
   if (it.clicked && !rec) { capturing_ = slot; lastNoteSlot_ = slot; capMods_ = capVk_ = 0; g_note.clear(); ui.RequestFrame(); }
   if (rec) {
@@ -98,34 +112,99 @@ bool SettingsWindow::ShortcutRow(Ui& ui, const Rect& vp, float& y, const wchar_t
     ui.RequestFrame();
   }
   ui.PopId();
-  y += 34;
+  y += rowH;
   if (!g_note.empty() && (capturing_ == 0) && slot == lastNoteSlot_) {
     TextStyle ns; ns.size = dialog::smallFontSize; ns.wrap = true;
-    p.Text({vp.x, y, vp.w, 18}, g_note, Color::Hex(0xB26A00), ns); y += 20;
+    p.Text({vp.x + 30, y, vp.w - 30, 18}, g_note, Color::Hex(0xB26A00), ns); y += 20;
   }
   return changed;
 }
 
 // ---------------------------------------------------------------------------------------------- tabs
 namespace {
+// Settings rows by Symbolic's rules: sections are rounded groups, every row has an icon, label on the left and its control on the right.
+const char* RowIcon(const wchar_t* text) {
+  struct Row { const wchar_t* key; const char* icon; };
+  static const Row rows[] = {
+    {L"sign in", "power"}, {L"notification", "bell"}, {L"drag-and-drop", "move"}, {L"open the wheel", "keyboard"}, {L"download the page", "download"},
+    {L"terminal", "terminal"}, {L"direction", "globe"}, {L"convert wheel", "convert"}, {L"tools wheel", "settings"}, {L"actions wheel", "share"},
+    {L"keep the wheel", "pin"}, {L"drag distance", "move"}, {L"wheel size", "zoom"}, {L"colour scheme", "palette"}, {L"glass style", "layers"},
+    {L"glass intensity", "layers"}, {L"reflections", "star"}, {L"edge refraction", "layers"}, {L"reduce transparency", "eye"}, {L"reduce motion", "speed"},
+    {L"save results", "folder"}, {L"file name", "text"}, {L"already exists", "copy"}, {L"image quality", "image"}, {L"video quality", "video"},
+    {L"audio bitrate", "audio"}, {L"metadata", "metadata"}, {L"gpu", "speed"}, {L"files processed", "layers"}, {L"drag a link", "link"},
+    {L"put downloads", "folder"}, {L"remember", "reset"}, {L"forget", "trash"},
+  };
+  const std::wstring k = ToLower(text);
+  for (const Row& r : rows) if (k.find(r.key) != std::wstring::npos) return r.icon;
+  return nullptr;
+}
+const char* HeadingIcon(const wchar_t* text) {
+  struct Row { const wchar_t* key; const char* icon; };
+  static const Row rows[] = {
+    {L"startup", "power"}, {L"keyboard", "keyboard"}, {L"terminal", "terminal"}, {L"language", "globe"}, {L"hold while", "grip"}, {L"behaviour", "sliders"},
+    {L"theme", "palette"}, {L"glass", "layers"}, {L"icon packs", "star"}, {L"where results", "folder"}, {L"default quality", "sliders"},
+    {L"link downloads", "download"}, {L"tools", "settings"},
+  };
+  const std::wstring k = ToLower(text);
+  for (const Row& r : rows) if (k.find(r.key) != std::wstring::npos) return r.icon;
+  return nullptr;
+}
+
 struct RowCtx {
   Ui& ui; const Rect& vp; float& y;
-  Rect Label(const wchar_t* text, float h = 34) {
+  float groupTop = -1; int rows = 0;
+  static constexpr float kRowH = 40, kCtlH = 30;       // one row height and one control height for every row
+  RowCtx(Ui& u, const Rect& v, float& yy) : ui(u), vp(v), y(yy) {}
+  ~RowCtx() { CloseGroup(); }
+  // A group is one rounded container; its plate is drawn after its rows as a very light veil, so it never hides a control.
+  // No border: only the hairlines between rows, from the label to the trailing edge.
+  void CloseGroup() {
+    if (groupTop >= 0 && y > groupTop + 8) {
+      y += 6;
+      const bool dark = Theme::Get().IsDark();
+      Rect plate{vp.x - 14, groupTop, vp.w + 28, y - groupTop};      // the viewport is inset 14 on each side: the plate fits inside the scroll clip
+      ui.P().FillRoundRect(plate, 12, dark ? Color(1, 1, 1, 0.06f) : Color(0, 0, 0, 0.04f));
+    }
+    groupTop = -1; rows = 0;
+  }
+  Rect Label(const wchar_t* text, float h = kRowH, const char* icon = nullptr) {
+    if (!icon) icon = RowIcon(text);
     Rect row{vp.x, y, vp.w, h}; y += h;
+    const bool rtl = ui.Rtl();
+    if (rows++ > 0) ui.P().FillRect({vp.x + (rtl ? 0.f : 30.f), row.y - 0.5f, vp.w - 30.f, 1.f}, ui.Pal().text.WithAlpha(0.10f));
     TextStyle ls; ls.size = dialog::bodyFontSize;
-    ui.P().Text({row.x, row.y, row.w * 0.5f, row.h}, text, ui.Pal().text, ls);
+    float tx = row.x, tw = row.w - 150.f;      // long labels get the room; the control sits at the right edge
+    if (icon) {
+      // an icon beside a label is about 1.3x the text size with a weight that matches it, centred on the row
+      ui.P().Icon(icon, rtl ? row.right() - 11 : row.x + 11, row.cy(), 18, ui.Pal().textSecondary, 1.9f);
+      tx = rtl ? row.x : row.x + 30; tw = row.w - 150.f - 30;
+    }
+    ui.P().Text({rtl ? row.right() - 30 - tw : tx, row.y, tw, row.h}, text, ui.Pal().text, ls);
     return row;
   }
-  Rect Right(const Rect& row, float w) { return ui.Mirror({row.right() - w, row.y + (row.h - 26) / 2, w, 26}, row); }
+  Rect Right(const Rect& row, float w) { return ui.Mirror({row.right() - w, row.y + (row.h - kCtlH) / 2, w, kCtlH}, row); }
+  // a segmented control sized to its labels (not a fixed slab), so it never crowds the label or runs wider than its neighbours
+  float SegW(std::initializer_list<const wchar_t*> labels) {
+    TextStyle ts; ts.weight = 600; ts.size = dialog::bodyFontSize;
+    float w = 8; for (const wchar_t* l : labels) w += ui.P().TextWidth(l, ts) + 30;
+    return w;
+  }
   void Hint(const wchar_t* text) {
     TextStyle hs; hs.size = dialog::smallFontSize; hs.wrap = true;
-    ui.P().Text({vp.x, y - 6, vp.w * 0.82f, 34}, text, ui.Pal().textTertiary, hs); y += 28;
+    ui.P().Text({vp.x + 30, y - 8, vp.w * 0.82f - 30, 34}, text, ui.Pal().textTertiary, hs); y += 26;
   }
-  void Heading(const wchar_t* text) { y += 10; ui.SectionTitle({vp.x, y, vp.w, 22}, text); y += 30; }
+  // Section headers are text only (small, semibold, secondary ink): the icons belong to the rows. Same space above and below every header.
+  void Heading(const wchar_t* text) {
+    CloseGroup();
+    y += 20;
+    TextStyle st; st.weight = 600; st.size = dialog::smallFontSize + .5f;
+    ui.P().Text({vp.x, y, vp.w, 18}, text, ui.Pal().textSecondary, st);
+    y += 18 + 8; groupTop = y; y += 6;
+  }
   bool Toggle(const wchar_t* text, bool& v, const wchar_t* hint = nullptr) {
     Rect row = Label(text);
     ui.PushId(ui.Id(std::wstring(text)));
-    bool c = ui.Toggle(ui.Mirror({row.right() - 46, row.y + (row.h - 26) / 2, 46, 26}, row), v);
+    bool c = ui.Toggle(ui.Mirror({row.right() - 38, row.y + (row.h - 26) / 2, 38, 26}, row), v);
     ui.PopId();
     if (hint) Hint(hint);
     return c;
@@ -140,8 +219,9 @@ void SettingsWindow::General(Ui& ui, const Rect& vp, Settings& s, float& y) {
   r.Toggle(L"Drag-and-drop wheels", s.backgroundIntegration, L"Turn this off to keep Filo in the tray without watching drags.");
   r.Toggle(L"Show notifications", s.notifications);
   r.Heading(L"Keyboard");
-  if (ShortcutRow(ui, vp, y, L"Open the wheel for the selected file", 4, s.invokeKeyboard, true)) {}
+  if (ShortcutRow(ui, vp, y, L"Open the wheel for the selected file", 4, s.invokeKeyboard, true, &r.rows)) {}
   r.Hint(L"Select a file in File Explorer, then press this shortcut.");
+  if (ShortcutRow(ui, vp, y, L"Download the page open in the browser", 5, s.downloadHotkey, true, &r.rows)) {}
   r.Heading(L"Terminal");
   {
     Rect row = r.Label(L"Open Terminal with");
@@ -156,7 +236,7 @@ void SettingsWindow::General(Ui& ui, const Rect& vp, Settings& s, float& y) {
     Rect row = r.Label(L"Interface direction");
     int sel = s.language == L"ar" ? 1 : 0;
     ui.PushId(0x1A6);
-    int n = ui.Segmented(r.Right(row, 220), {L"Left to right", L"Right to left"}, sel);
+    int n = ui.Segmented(r.Right(row, r.SegW({L"Left to right", L"Right to left"})), {L"Left to right", L"Right to left"}, sel);
     ui.PopId();
     s.language = n == 1 ? L"ar" : L"en";
     r.Hint(L"Mirrors window layouts the next time a window opens.");
@@ -167,9 +247,9 @@ void SettingsWindow::Wheels(Ui& ui, const Rect& vp, Settings& s, float& y) {
   RowCtx r{ui, vp, y};
   r.Heading(L"Hold while dragging a file");
   Shortcut a = s.convertWheel, b = s.toolsWheel, c = s.actionsWheel;
-  const bool ca = ShortcutRow(ui, vp, y, L"Convert wheel", 1, a, false);
-  const bool cb = ShortcutRow(ui, vp, y, L"Tools wheel", 2, b, false);
-  const bool cc = ShortcutRow(ui, vp, y, L"Actions wheel", 3, c, false);
+  const bool ca = ShortcutRow(ui, vp, y, L"Convert wheel", 1, a, false, &r.rows);
+  const bool cb = ShortcutRow(ui, vp, y, L"Tools wheel", 2, b, false, &r.rows);
+  const bool cc = ShortcutRow(ui, vp, y, L"Actions wheel", 3, c, false, &r.rows);
   auto clash = [&](const Shortcut& x, const Shortcut& y2, const Shortcut& z) { return x == y2 || x == z; };
   if (ca) { if (clash(a, b, c)) { g_note = L"That combination already opens another wheel."; lastNoteSlot_ = 1; } else s.convertWheel = a; }
   if (cb) { if (clash(b, a, c)) { g_note = L"That combination already opens another wheel."; lastNoteSlot_ = 2; } else s.toolsWheel = b; }
@@ -200,13 +280,15 @@ void SettingsWindow::Appearance(Ui& ui, const Rect& vp, Settings& s, float& y) {
   {
     Rect row = r.Label(L"Colour scheme");
     ui.PushId(0x7E3E);
-    s.theme = ui.Segmented(r.Right(row, 240), {L"System", L"Light", L"Dark"}, std::clamp(s.theme, 0, 2));
+    s.theme = ui.Segmented(r.Right(row, r.SegW({L"System", L"Light", L"Dark"})), {L"System", L"Light", L"Dark"}, std::clamp(s.theme, 0, 2));
     ui.PopId();
   }
   r.Heading(L"Glass");
   {
     Rect row = r.Label(L"Glass style"); ui.PushId(0x61A56);
-    s.glassStyle = ui.Segmented(r.Right(row, 400), {L"Liquid Glass", L"Soft Glass", L"Acrylic", L"Glassy UI"}, std::clamp(s.glassStyle, 0, 3));
+    static const int kOrder[] = {4, 0, 1, 2, 3};      // Symbolic Glass first (the default), the others are alternatives
+    int cur = 0; for (int i = 0; i < 5; ++i) if (kOrder[i] == s.glassStyle) cur = i;
+    s.glassStyle = kOrder[ui.Segmented(r.Right(row, r.SegW({L"Symbolic", L"Liquid", L"Soft", L"Acrylic", L"Glassy UI"})), {L"Symbolic", L"Liquid", L"Soft", L"Acrylic", L"Glassy UI"}, cur)];
     ui.PopId();
   }
   if (s.glassStyle == 2) {
@@ -223,6 +305,11 @@ void SettingsWindow::Appearance(Ui& ui, const Rect& vp, Settings& s, float& y) {
     ui.Slider(r.Right(row, 190), s.glassReflections, 0.f, 1.f, .05f, 1.f); ui.PopId();
     row = r.Label(L"Edge refraction"); ui.PushId(0x61A58);
     ui.Slider(r.Right(row, 190), s.glassRefraction, 0.f, 1.f, .05f, 1.f); ui.PopId();
+  }
+  if (s.glassStyle == 4) {
+    Rect row = r.Label(L"Edge refraction"); ui.PushId(0x61A5A);
+    ui.Slider(r.Right(row, 190), s.glassRefraction, 0.f, 1.f, .05f, 1.f); ui.PopId();
+    r.Hint(L"Symbolic Glass is the material of your Symbolic app (its menu and dialog glass). Liquid, Soft, Acrylic and Glassy UI stay available.");
   }
   if (s.glassStyle == 3) {
     Rect row = r.Label(L"Edge refraction"); ui.PushId(0x61A59);
@@ -282,7 +369,7 @@ void SettingsWindow::Files(Ui& ui, const Rect& vp, Settings& s, float& y) {
   {
     Rect row = r.Label(L"Save results");
     ui.PushId(0x10C);
-    int n = ui.Segmented(r.Right(row, 300), {L"Next to the original", L"Fixed folder"}, s.outputLocation == OutputLocation::FixedFolder ? 1 : 0);
+    int n = ui.Segmented(r.Right(row, r.SegW({L"Next to the original", L"Fixed folder"})), {L"Next to the original", L"Fixed folder"}, s.outputLocation == OutputLocation::FixedFolder ? 1 : 0);
     ui.PopId();
     s.outputLocation = n == 1 ? OutputLocation::FixedFolder : OutputLocation::NextToOriginal;
   }
@@ -297,13 +384,13 @@ void SettingsWindow::Files(Ui& ui, const Rect& vp, Settings& s, float& y) {
   {
     Rect row = r.Label(L"Add to the file name");
     ui.PushId(0x5FF1);
-    ui.TextInput(r.Right(row, 190), s.filenameSuffix, L"nothing");
+    ui.TextInput(r.Right(row, 190), s.filenameSuffix, L"Optional suffix");
     ui.PopId();
   }
   {
     Rect row = r.Label(L"If the file already exists");
     ui.PushId(0x0FE2);
-    int n = ui.Segmented(r.Right(row, 220), {L"Keep both", L"Replace"}, s.overwritePolicy == OverwritePolicy::Overwrite ? 1 : 0);
+    int n = ui.Segmented(r.Right(row, r.SegW({L"Keep both", L"Replace"})), {L"Keep both", L"Replace"}, s.overwritePolicy == OverwritePolicy::Overwrite ? 1 : 0);
     ui.PopId();
     s.overwritePolicy = n == 1 ? OverwritePolicy::Overwrite : OverwritePolicy::UniqueName;
     r.Hint(L"Originals are never modified. Results are written to a temporary file first and moved into place when finished.");
@@ -341,6 +428,31 @@ void SettingsWindow::Files(Ui& ui, const Rect& vp, Settings& s, float& y) {
     if (ui.Stepper(r.Right(row, 120), v, 1, 8, 1, 0)) s.concurrentJobs = (int)v;
     ui.PopId();
   }
+  r.Heading(L"Link downloads");
+  r.Toggle(L"Drag a link and press Right Ctrl to download it", s.linkDownloads, L"TikTok, YouTube, X, Instagram and more. A window lets you choose what to save first.");
+  {
+    Rect row{vp.x, y, vp.w, 34}; y += 38;
+    auto c = ui.Cols(row, {Flex(1), Fixed(96)}, 8);
+    ui.PushId(0xD0F1);
+    ui.TextInput(c[0], s.downloadFolder, L"Downloads folder (default)");
+    if (ui.Button(c[1], L"Browse...", ButtonStyle::Secondary)) { std::wstring f; if (PickFolder(Hwnd(), f)) s.downloadFolder = f; }
+    ui.PopId();
+  }
+  {
+    Rect row = r.Label(L"Put downloads in a folder from");
+    double v = s.downloadFolderThreshold;
+    ui.PushId(0xD0F2);
+    if (ui.Stepper(r.Right(row, 150), v, 0, 100, 1, 0, L" files")) s.downloadFolderThreshold = (int)v;
+    ui.PopId();
+    r.Hint(L"Slideshows with many pictures are saved in their own folder. 0 never makes a folder.");
+  }
+  {
+    Rect row = r.Label(L"Video quality");
+    ui.PushId(0xD0F3);
+    int n = ui.Segmented(r.Right(row, r.SegW({L"Best available", L"Most compatible"})), {L"Best available", L"Most compatible"}, s.downloadQuality);
+    ui.PopId();
+    s.downloadQuality = n;
+  }
   r.Heading(L"Tools");
   r.Toggle(L"Remember each tool's last settings", s.applyLastUsed);
   {
@@ -357,20 +469,20 @@ void SettingsWindow::Draw(Ui& ui, const Rect& content, const Rect& body) {
   const float pad = dialog::contentInset + 8;
   Rect tabs{body.x + pad, content.y + 12, body.w - 2 * pad, 30};
   ui.PushId(0x5E77);
-  const int nt = ui.Segmented(tabs, {L"General", L"Wheels", L"Appearance", L"Files"}, tab_);
+  const int nt = ui.Segmented(tabs, {L"General", L"Wheels", L"Appearance", L"Files"}, tab_, true, {"sliders", "wheel", "palette", "folder"});
   ui.PopId();
   if (nt != tab_) { tab_ = nt; capturing_ = 0; g_note.clear(); }
   Rect vp{body.x + pad, tabs.bottom() + 6, body.w - 2 * pad, std::max(80.f, body.bottom() - tabs.bottom() - 6 - 10)};
   const float off = ui.BeginScroll(vp, contentH_, ui.Id("settings-scroll"));
   float y = vp.y - off;
-  Rect inner{vp.x, vp.y, vp.w - (contentH_ > vp.h ? 12.f : 0.f), vp.h};
+  Rect inner{vp.x + 14, vp.y, vp.w - 28 - (contentH_ > vp.h ? 14.f : 0.f), vp.h};      // the scroll bar keeps its own gutter
   switch (tab_) {
     case 0: General(ui, inner, s, y); break;
     case 1: Wheels(ui, inner, s, y); break;
     case 2: Appearance(ui, inner, s, y); break;
     default: Files(ui, inner, s, y); break;
   }
-  contentH_ = y - (vp.y - off) + 16;
+  contentH_ = y - (vp.y - off) + 34;      // bottom padding: the last group never touches the fade at the window edge
   ui.EndScroll();
   const bool reset = resetPresets_; resetPresets_ = false;
   if (reset || s.ToJson().Dump() != before) {

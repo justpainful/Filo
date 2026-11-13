@@ -1,4 +1,5 @@
 #include "ui/ui.h"
+#include "core/util.h"
 #include <windows.h>
 #include <algorithm>
 #include <cmath>
@@ -17,6 +18,30 @@ uint64_t Fnv(const void* d, size_t n, uint64_t h) {
   return h;
 }
 float Smooth(float t) { return t * t * (3 - 2 * t); }
+// The best-fitting icon for a button, chosen from its label (every button of the app goes through here, so the same word always has the same icon).
+std::string IconForLabel(const std::wstring& label) {
+  struct Row { const wchar_t* word; const char* icon; };
+  static const Row rows[] = {
+    {L"apply", "check"}, {L"done", "check"}, {L"ok", "check"}, {L"save", "check"}, {L"select all", "check"}, {L"all", "check"},
+    {L"cancel", "close"}, {L"close", "close"}, {L"none", "close"}, {L"discard", "close"},
+    {L"reset", "reset"}, {L"original", "reset"}, {L"undo", "reset"}, {L"reload", "reset"}, {L"try again", "reset"}, {L"back", "chevronleft"},
+    {L"download", "download"}, {L"paste", "clipboard"}, {L"read", "magnifier"}, {L"copy", "copy"}, {L"copy all", "copy"}, {L"copy path", "copypath"},
+    {L"browse...", "folder"}, {L"change...", "folder"}, {L"show in folder", "folder"}, {L"open folder", "folder"}, {L"open link", "link"},
+    {L"edit again", "edit"}, {L"edit", "edit"}, {L"add", "add"}, {L"add files", "add"}, {L"add videos", "add"}, {L"add pdfs", "add"}, {L"remove", "remove"},
+    {L"clear", "trash"}, {L"delete", "trash"}, {L"forget", "trash"}, {L"export", "share"}, {L"share", "share"}, {L"play", "play"}, {L"pause", "pause"}, {L"stop", "stop"},
+    {L"compress", "compress"}, {L"join", "join"}, {L"join videos", "join"}, {L"trim", "trim"}, {L"crop", "crop"}, {L"split", "split"}, {L"merge", "merge"},
+    {L"convert", "convert"}, {L"redact", "redact"}, {L"annotate", "annotate"}, {L"normalize", "normalize"}, {L"create pdf", "document"}, {L"collage", "layers"},
+    {L"organize", "organize"}, {L"extract", "extract"}, {L"rotate", "rotate"}, {L"speed", "speed"}, {L"mute", "removeaudio"}, {L"remove audio", "removeaudio"},
+    {L"extract frames", "frames"}, {L"save frames", "frames"}, {L"visualize", "visualizer"}, {L"bleep", "bleep"}, {L"float", "float"}, {L"terminal", "terminal"},
+    {L"settings", "settings"}, {L"retry", "reset"}, {L"zoom", "zoom"}, {L"fit", "zoom"}, {L"detect", "magnifier"}, {L"detect faces", "magnifier"},
+  };
+  const std::wstring k = ToLower(Trim(label));
+  for (const Row& r : rows) if (k == r.word) return r.icon;
+  for (const Row& r : rows) { const std::wstring w = r.word; if (w.size() > 3 && k.size() > w.size() && k.compare(0, w.size(), w) == 0 && k[w.size()] == L' ') return r.icon; }
+  return {};
+}
+// Scales a rect about its centre (press feedback).
+Rect Scaled(const Rect& r, float k) { return {r.cx() - r.w * k / 2, r.cy() - r.h * k / 2, r.w * k, r.h * k}; }
 std::wstring ClipboardText() {
   std::wstring out;
   if (OpenClipboard(nullptr)) {
@@ -163,14 +188,23 @@ float Ui::Anim(uint64_t id, float target, float seconds) {
   return Smooth(std::clamp(a.v, 0.f, 1.f));
 }
 
+float Ui::Follow(uint64_t id, float target, float seconds) {
+  AnimState& a = anim_[id];
+  if (!a.init) { a.v = target; a.init = true; return a.v; }
+  if (Theme::Get().MotionScale() == 0.f) { a.v = target; return a.v; }
+  a.v = FollowStep(a.v, target, dt_, seconds);
+  if (a.v != target) needFrame_ = true;
+  return a.v;
+}
+
 // ------------------------------------------------------------------------------------------------ simple widgets
 void Ui::Label(const Rect& r, const std::wstring& s, TextStyle st, const Color* color) {
   p_->Text(r, s, color ? *color : pal_->text, st);
 }
 void Ui::LabelSecondary(const Rect& r, const std::wstring& s, TextStyle st) { p_->Text(r, s, pal_->textSecondary, st); }
 void Ui::SectionTitle(const Rect& r, const std::wstring& s) {
-  TextStyle st; st.weight = 700; st.size = kFont;
-  p_->Text(r, s, pal_->heading, st);
+  TextStyle st; st.weight = 600; st.size = ds::dialog::smallFontSize + .5f;      // Symbolic group titles: small, secondary ink
+  p_->Text(r, s, pal_->textSecondary, st);
 }
 void Ui::Divider(const Rect& r) { p_->FillRect({r.x, std::floor(r.cy()), r.w, 1.f}, pal_->divider); }
 
@@ -179,43 +213,60 @@ static ds::Color HoverTint(const Palette& pal, float hover, float press, const C
   return Mix(c, accent::base.WithAlpha(0.36f), press);
 }
 
-bool Ui::Button(const Rect& r, const std::wstring& label, ButtonStyle st, bool enabled, const std::string& icon) {
+bool Ui::Button(const Rect& r0, const std::wstring& label, ButtonStyle st, bool enabled, const std::string& iconIn) {
   const uint64_t id = Id(label);
-  Interaction it = Behavior(r, id, enabled, true);
+  Interaction it = Behavior(r0, id, enabled, true);
   if (it.hot && enabled) cursor_ = (int)(intptr_t)IDC_HAND;
-  const float hov = Anim(id * 3 + 1, it.hot ? 1.f : 0.f), prs = Anim(id * 3 + 2, it.active && it.hot ? 1.f : 0.f, 0.06f);
+  const float hov = Anim(id * 3 + 1, it.hot ? 1.f : 0.f, ds::motion::uiFast), prs = Anim(id * 3 + 2, it.active && it.hot ? 1.f : 0.f, 0.06f);
+  const bool dark = Theme::Get().IsDark();
+  // Symbolic buttons: quiet glass capsules, one accent capsule per view; hover is a soft platter, press shrinks to .96
+  const Rect r = Theme::Get().MotionScale() > 0 ? Scaled(r0, 1.f - 0.04f * prs) : r0;
+  const float rad = r.h * 0.5f;
+  const Color platter = dark ? Color(1, 1, 1, 0.09f) : Color(0, 0, 0, 0.07f);
   Color fill, text = pal_->text;
   switch (st) {
     case ButtonStyle::OnCanvas: fill = Mix(Color(1, 1, 1, 0.12f), accent::base.WithAlpha(0.50f), hov); text = Color::Hex(0xFFFFFF); break;
     case ButtonStyle::Primary: fill = Mix(Mix(accent::base, accent::hover, hov), accent::pressed, prs); text = accent::onAccent; break;
-    case ButtonStyle::Quiet: fill = HoverTint(*pal_, hov, prs, Color(0, 0, 0, 0)); break;
-    case ButtonStyle::Danger: fill = HoverTint(*pal_, hov, prs, pal_->controlFill); text = Color::Hex(0xE5484D); break;
-    default: fill = HoverTint(*pal_, hov, prs, pal_->controlFill); break;
+    case ButtonStyle::Quiet: fill = Color(0, 0, 0, 0); break;
+    case ButtonStyle::Danger: fill = pal_->controlFill; text = Color::Hex(0xE5484D); break;
+    default: fill = pal_->controlFill; break;
   }
   if (!enabled) { fill = pal_->controlFillDisabled; text = pal_->textDisabled; if (st == ButtonStyle::Primary) fill = Mix(accent::base, Color(1, 1, 1, 0), 0.6f).WithAlpha(0.35f); }
-  p_->FillRoundRect(r, control::buttonRadius, fill);
-  if (st == ButtonStyle::Secondary) p_->StrokeRoundRect(r, control::buttonRadius, pal_->divider.WithAlpha(enabled ? 0.10f : 0.04f), 1.f);
-  if (it.focused && focusVisible_) p_->StrokeRoundRect(r.Inset(-2), control::buttonRadius + 2, accent::base.WithAlpha(0.9f), 2.f);
+  p_->FillRoundRect(r, rad, fill);
+  if (enabled && st != ButtonStyle::Primary && st != ButtonStyle::OnCanvas) {
+    const float a = platter.a * (hov * 0.8f + prs * 0.9f);
+    if (a > 0.002f) p_->FillRoundRect(r, rad, platter.WithAlpha(a));
+  }
+  if (st == ButtonStyle::Secondary || st == ButtonStyle::Danger) p_->StrokeRoundRect(r, rad, pal_->text.WithAlpha(enabled ? 0.12f : 0.05f), 0.8f);
+  if (it.focused && focusVisible_) p_->StrokeRoundRect(r.Inset(-2), rad + 2, accent::base.WithAlpha(0.9f), 2.f);
   TextStyle ts; ts.weight = 500; ts.align = Align::Center; ts.size = kFont;
+  const std::string icon = iconIn.empty() ? IconForLabel(label) : iconIn;
   if (icon.empty()) p_->Text(r, label, text, ts);
   else {
-    const float iw = 14, gap = 6, tw = p_->TextWidth(label, ts);
+    const float iw = 17, gap = 7, tw = p_->TextWidth(label, ts);
     float total = iw + gap + tw, x0 = r.cx() - total / 2;
-    if (rtl_) { p_->Icon(icon, x0 + total - iw / 2, r.cy(), iw, text, 1.6f); p_->Text({x0, r.y, tw, r.h}, label, text, ts); }
-    else { p_->Icon(icon, x0 + iw / 2, r.cy(), iw, text, 1.6f); p_->Text({x0 + iw + gap, r.y, tw + 2, r.h}, label, text, ts); }
+    if (rtl_) { p_->Icon(icon, x0 + total - iw / 2, r.cy(), iw, text, 1.9f); p_->Text({x0, r.y, tw, r.h}, label, text, ts); }
+    else { p_->Icon(icon, x0 + iw / 2, r.cy(), iw, text, 1.9f); p_->Text({x0 + iw + gap, r.y, tw + 2, r.h}, label, text, ts); }
   }
   return it.clicked && enabled;
 }
 
-bool Ui::IconButton(const Rect& r, const std::string& icon, bool enabled, const std::wstring& tip, bool filled) {
+bool Ui::IconButton(const Rect& r0, const std::string& icon, bool enabled, const std::wstring& tip, bool filled) {
   const uint64_t id = Id(icon + "#ib");
-  Interaction it = Behavior(r, id, enabled, true);
+  Interaction it = Behavior(r0, id, enabled, true);
   if (it.hot && enabled) cursor_ = (int)(intptr_t)IDC_HAND;
-  const float hov = Anim(id * 3 + 1, it.hot ? 1.f : 0.f), prs = Anim(id * 3 + 2, it.active && it.hot ? 1.f : 0.f, 0.06f);
-  Color base = filled ? pal_->controlFill : Color(0, 0, 0, 0);
-  p_->FillRoundRect(r, std::min(r.w, r.h) * 0.5f > control::buttonRadius ? control::buttonRadius + 2 : std::min(r.w, r.h) * 0.5f, enabled ? HoverTint(*pal_, hov, prs, base) : Color(0, 0, 0, 0));
-  p_->Icon(icon, r.cx(), r.cy(), std::min(r.w, r.h) * (filled ? 0.56f : 0.70f), enabled ? Mix(pal_->textSecondary, accent::base, hov) : pal_->textDisabled, 1.6f);
-  if (it.focused && focusVisible_) p_->StrokeRoundRect(r.Inset(-2), 10, accent::base.WithAlpha(0.9f), 2.f);
+  const float hov = Anim(id * 3 + 1, it.hot ? 1.f : 0.f, ds::motion::uiFast), prs = Anim(id * 3 + 2, it.active && it.hot ? 1.f : 0.f, 0.06f);
+  const bool dark = Theme::Get().IsDark();
+  const Rect r = Theme::Get().MotionScale() > 0 ? Scaled(r0, 1.f - 0.04f * prs) : r0;
+  const float rad = std::min(r.w, r.h) * 0.5f;
+  const Color platter = dark ? Color(1, 1, 1, 0.09f) : Color(0, 0, 0, 0.07f);
+  if (enabled) {
+    if (filled) p_->FillRoundRect(r, rad, pal_->controlFill);
+    const float a = platter.a * (hov * 0.8f + prs * 0.9f);
+    if (a > 0.002f) p_->FillRoundRect(r, rad, platter.WithAlpha(a));
+  }
+  p_->Icon(icon, r.cx(), r.cy(), std::min(r.w, r.h) * (filled ? 0.56f : 0.70f), enabled ? Mix(pal_->textSecondary, pal_->text, hov) : pal_->textDisabled, 1.65f);
+  if (it.focused && focusVisible_) p_->StrokeRoundRect(r.Inset(-2), rad + 2, accent::base.WithAlpha(0.9f), 2.f);
   if (!tip.empty()) Tooltip(tip);
   return it.clicked && enabled;
 }
@@ -238,12 +289,24 @@ bool Ui::CloseButton(const Rect& r,bool glass,bool enabled) {
   return enabled&&it.clicked;
 }
 
-int Ui::Segmented(const Rect& r, const std::vector<std::wstring>& labels, int sel, bool enabled) {
+int Ui::Segmented(const Rect& r, const std::vector<std::wstring>& labels, int sel, bool enabled, const std::vector<std::string>& icons) {
   if (labels.empty()) return sel;
   const uint64_t id = Id(labels[0] + L"#seg");
   const int n = (int)labels.size();
-  p_->FillRoundRect(r, control::buttonRadius, enabled ? pal_->controlFill : pal_->controlFillDisabled);
+  const bool dark = Theme::Get().IsDark();
+  const float rad = r.h * 0.5f;
+  const Color platter = dark ? Color(1, 1, 1, 0.09f) : Color(0, 0, 0, 0.07f);
+  // the track (Symbolic --seg-track), then one glass lens that slides to the selected item
+  p_->FillRoundRect(r, rad, enabled ? (dark ? Color(1, 1, 1, 0.07f) : Color(0, 0, 0, 0.055f)) : pal_->controlFillDisabled);
   const float segW = r.w / n;
+  const int selVisual = rtl_ ? n - 1 - sel : sel;
+  const float pos = Follow(id * 5 + 3, n > 1 ? (float)selVisual / (float)(n - 1) : 0.f, ds::motion::uiSelect);
+  if (sel >= 0 && sel < n) {
+    Rect lens{r.x + 2 + pos * (n - 1) * segW, r.y + 2, segW - 4, r.h - 4};
+    p_->Shadow(lens, lens.h / 2, 4, Color(0, 0, 0, dark ? 0.30f : 0.14f), 1);
+    p_->FillRoundRect(lens, lens.h / 2, enabled ? (dark ? Color(1, 1, 1, 0.20f) : Color(1, 1, 1, 0.96f)) : pal_->controlFillDisabled);
+    p_->StrokeRoundRect(lens, lens.h / 2, dark ? Color(1, 1, 1, 0.22f) : Color(0, 0, 0, 0.06f), 0.8f);
+  }
   int result = sel;
   PushId(id);
   for (int i = 0; i < n; ++i) {
@@ -252,19 +315,19 @@ int Ui::Segmented(const Rect& r, const std::vector<std::wstring>& labels, int se
     PushId(i);
     Interaction it = Behavior(sr, Id("s"), enabled, true);
     if (it.hot) cursor_ = (int)(intptr_t)IDC_HAND;
-    const float on = Anim(Id("sel"), i == sel ? 1.f : 0.f), hov = Anim(Id("hov"), it.hot && i != sel ? 1.f : 0.f);
+    const float hov = Anim(Id("hov"), it.hot && i != sel ? 1.f : 0.f, ds::motion::uiFast);
     Rect in = sr.Inset(2);
-    if (on > 0.01f) {
-      p_->Shadow(in, control::buttonRadius - 2, 3, Color(0, 0, 0, 0.12f * on), 1);
-      p_->FillRoundRect(in, control::buttonRadius - 2, Color(pal_->controlFillPressed.r, pal_->controlFillPressed.g, pal_->controlFillPressed.b, pal_->controlFillPressed.a * on));
-    }
-    if (hov > 0.01f) p_->FillRoundRect(in, control::buttonRadius - 2, accent::base.WithAlpha(0.16f * hov));
-    TextStyle ts; ts.weight = 500; ts.align = Align::Center; ts.size = kFont;
-    p_->Text(sr, labels[i], enabled ? pal_->text : pal_->textDisabled, ts);
-    if (it.focused && focusVisible_) p_->StrokeRoundRect(in, control::buttonRadius - 2, accent::base, 2.f);
+    if (hov > 0.01f) p_->FillRoundRect(in, in.h / 2, platter.WithAlpha(platter.a * hov));
+    TextStyle ts; ts.weight = i == sel ? 600 : 500; ts.align = Align::Center; ts.size = kFont;
+    const Color ink = !enabled ? pal_->textDisabled : (i == sel ? pal_->text : Mix(pal_->textSecondary, pal_->text, hov));
+    if (i < (int)icons.size() && !icons[i].empty()) {
+      const float iw = 18, gap = 7, tw = p_->TextWidth(labels[i], ts), total = iw + gap + tw, x0 = sr.cx() - total / 2;
+      p_->Icon(icons[i], x0 + iw / 2, sr.cy(), iw, ink, 1.9f);
+      p_->Text({x0 + iw + gap, sr.y, tw + 2, sr.h}, labels[i], ink, ts);
+    } else p_->Text(sr, labels[i], ink, ts);
+    if (it.focused && focusVisible_) p_->StrokeRoundRect(in, in.h / 2, accent::base, 2.f);
     if (it.clicked && enabled) result = i;
     PopId();
-    if (i + 1 < n && i != sel && i + 1 != sel) p_->FillRect({sr.right() - 0.5f, r.y + 7, 1.f, r.h - 14}, pal_->divider);
   }
   PopId();
   return result;
@@ -423,8 +486,11 @@ bool Ui::TextInput(const Rect& r, std::wstring& s, const std::wstring& placehold
   }
   // field visuals
   const float foc = Anim(id * 3 + 1, focused ? 1.f : 0.f, 0.1f), hov = Anim(id * 3 + 2, it.hot ? 1.f : 0.f);
-  p_->FillRoundRect(r, control::buttonRadius, Mix(pal_->fieldFill, Color(1, 1, 1, std::min(1.f, pal_->fieldFill.a + 0.15f)), foc));
-  p_->StrokeRoundRect(r, control::buttonRadius, Mix(Mix(pal_->divider, accent::base.WithAlpha(0.45f), hov), accent::base, foc), 1.f + foc * 0.5f);
+  const bool dkf = Theme::Get().IsDark();
+  const float frad = std::min(r.h * 0.5f, 16.f);
+  const Color quiet = dkf ? Color(1, 1, 1, 0.07f) : Color(0, 0, 0, 0.055f), lit = dkf ? Color(1, 1, 1, 0.14f) : Color(1, 1, 1, 0.85f);
+  p_->FillRoundRect(r, frad, enabled ? Mix(quiet, lit, foc) : pal_->controlFillDisabled);
+  p_->StrokeRoundRect(r, frad, Mix(Mix(pal_->text.WithAlpha(0.10f), accent::base.WithAlpha(0.45f), hov), accent::base, foc), 0.8f + foc * 0.8f);
   p_->PushClip(tr);
   const float caretX = p_->CaretX(s, ts, es.caret);
   if (focused) {
@@ -440,16 +506,16 @@ bool Ui::TextInput(const Rect& r, std::wstring& s, const std::wstring& placehold
   else p_->Text(text, s, enabled ? pal_->text : pal_->textDisabled, ts);
   if (focused && std::fmod(now_ - es.blink, 1.0) < 0.55) p_->FillRect({text.x + caretX, r.y + 6, 1.2f, r.h - 12}, pal_->text);
   p_->PopClip();
-  if (!enabled) p_->FillRoundRect(r, control::buttonRadius, Color(1, 1, 1, 0.25f));
   return changed;
 }
 
 bool Ui::Stepper(const Rect& r, double& v, double lo, double hi, double step, int decimals, const std::wstring& suffix, bool enabled) {
   const uint64_t id = AutoId("stepper");
   PushId(id);
-  const float bw = 22;
-  Rect field{r.x, r.y, r.w - bw - 4, r.h};
-  Rect up{r.right() - bw, r.y, bw, r.h / 2 - 1}, dn{r.right() - bw, r.y + r.h / 2 + 1, bw, r.h / 2 - 1};
+  const bool dark = Theme::Get().IsDark();
+  const float d = std::min(r.h, 30.f), gap = 6;
+  Rect badge{rtl_ ? r.x : r.right() - d, r.cy() - d / 2, d, d};
+  Rect field{rtl_ ? r.x + d + gap : r.x, r.y, r.w - d - gap, r.h};
   wchar_t buf[64]; swprintf_s(buf, L"%.*f", decimals, v);
   std::wstring txt = buf;
   bool changed = false;
@@ -460,10 +526,21 @@ bool Ui::Stepper(const Rect& r, double& v, double lo, double hi, double step, in
   }
   if (!suffix.empty()) {
     TextStyle ss; ss.size = ds::dialog::smallFontSize; ss.align = Align::End;
-    p_->Text({field.x, field.y, field.w - 8, field.h}, suffix, pal_->textTertiary, ss);
+    p_->Text({field.x, field.y, field.w - 12, field.h}, suffix, pal_->textTertiary, ss);
   }
-  if (IconButton(up, "chevronup", enabled && v < hi, L"", true)) { v = std::min(hi, v + step); changed = true; }
-  if (IconButton(dn, "chevrondown", enabled && v > lo, L"", true)) { v = std::max(lo, v - step); changed = true; }
+  // one round badge with two halves: up above, down below (the pop-up button's stepper)
+  p_->FillCircle(badge.cx(), badge.cy(), d / 2, enabled ? (dark ? Color(1, 1, 1, 0.16f) : Color(0, 0, 0, 0.09f)) : pal_->controlFillDisabled);
+  const Rect upR{badge.x, badge.y, d, d / 2}, dnR{badge.x, badge.cy(), d, d / 2};
+  auto half = [&](const Rect& hr, const char* icon, float cy, bool on) {
+    Interaction it = Behavior(hr, Id(icon), enabled && on, true);
+    if (it.hot && enabled && on) cursor_ = (int)(intptr_t)IDC_HAND;
+    const float hv = Anim(Id(icon) * 3 + 1, it.hot && on ? 1.f : 0.f, ds::motion::uiFast);
+    const Color ink = !enabled || !on ? pal_->textDisabled : Mix(pal_->textSecondary, pal_->text, hv);
+    p_->Icon(icon, badge.cx(), cy, 10, ink, 2.0f);
+    return it.clicked && enabled && on;
+  };
+  if (half(upR, "chevronup", badge.cy() - d * 0.2f, v < hi)) { v = std::min(hi, v + step); changed = true; }
+  if (half(dnR, "chevrondown", badge.cy() + d * 0.2f, v > lo)) { v = std::max(lo, v - step); changed = true; }
   PopId();
   return changed;
 }
@@ -475,12 +552,20 @@ bool Ui::Dropdown(const Rect& r, const std::vector<std::wstring>& items, int& se
   if (it.hot && enabled) cursor_ = (int)(intptr_t)IDC_HAND;
   bool changed = false;
   const float hov = Anim(id * 3 + 1, it.hot ? 1.f : 0.f);
-  p_->FillRoundRect(r, control::buttonRadius, enabled ? HoverTint(*pal_, hov, 0, pal_->controlFill) : pal_->controlFillDisabled);
+  const bool dk = Theme::Get().IsDark();
+  const float rad = r.h * 0.5f;
+  p_->FillRoundRect(r, rad, enabled ? (dk ? Color(1, 1, 1, 0.07f) : Color(0, 0, 0, 0.055f)) : pal_->controlFillDisabled);      // the same quiet track as the segmented control
+  if (enabled && hov > 0.01f) p_->FillRoundRect(r, rad, (dk ? Color(1, 1, 1, 0.09f) : Color(0, 0, 0, 0.07f)).WithAlpha((dk ? 0.09f : 0.07f) * hov));
+  p_->StrokeRoundRect(r, rad, pal_->text.WithAlpha(enabled ? 0.12f : 0.05f), 0.8f);
   TextStyle ts; ts.size = kFont; ts.weight = 500;
-  Rect tr{r.x + 10, r.y, r.w - 34, r.h};
-  if (rtl_) tr = {r.x + 24, r.y, r.w - 34, r.h};
+  Rect tr{r.x + 14, r.y, r.w - 44, r.h};
+  if (rtl_) tr = {r.x + 34, r.y, r.w - 44, r.h};
   p_->Text(tr, sel >= 0 && sel < (int)items.size() ? items[sel] : L"", enabled ? pal_->text : pal_->textDisabled, ts);
-  p_->Icon("chevrondown", rtl_ ? r.x + 14 : r.right() - 14, r.cy(), 12, enabled ? pal_->textSecondary : pal_->textDisabled, 1.8f);
+  // Symbolic pop-up button: the value, then a small round stepper badge with the up/down chevrons
+  { const float bd = std::min(20.f, r.h - 6), bx = rtl_ ? r.x + 3 + bd / 2 : r.right() - 3 - bd / 2;
+    p_->FillCircle(bx, r.cy(), bd / 2, dk ? Color(1, 1, 1, 0.16f) : Color(0, 0, 0, 0.09f));
+    const Color ink = enabled ? pal_->text : pal_->textDisabled;
+    p_->Icon("chevronup", bx, r.cy() - 3.2f, 8, ink, 1.9f); p_->Icon("chevrondown", bx, r.cy() + 3.2f, 8, ink, 1.9f); }
   if (it.clicked && enabled && !open) { popup_ = id; needFrame_ = true; }
   else if (it.clicked && open) { popup_ = 0; }
   if (open) {
@@ -500,12 +585,12 @@ bool Ui::Dropdown(const Rect& r, const std::vector<std::wstring>& items, int& se
     const int selCopy = sel;
     const bool dark = Theme::Get().IsDark();
     Defer([=](Painter& p) {
-      p.Shadow(list, 12, 18, Color(0, 0, 0, 0.35f), 6);
-      p.FillRoundRect(list, 12, dark ? Color::Hex(0x2A2B2F, 0.98f) : Color::Hex(0xFFFFFF, 0.98f));
-      p.StrokeRoundRect(list, 12, pal->divider, 1.f);
+      p.Shadow(list, 14, 22, Color(0, 0, 0, 0.30f), 8);
+      p.FillRoundRect(list, 14, dark ? Color::Hex(0x29292D, 0.98f) : Color::Hex(0xFDFDFD, 0.98f));      // Symbolic --surface-2 / --surface
+      p.StrokeRoundRect(list, 14, pal->divider, 0.8f);
       for (int i = 0; i < (int)itemsCopy.size(); ++i) {
         Rect rr{list.x + 4, list.y + 4 + i * rowH, list.w - 8, rowH};
-        if (i == hover) p.FillRoundRect(rr, 8, accent::base.WithAlpha(0.22f));
+        if (i == hover) p.FillRoundRect(rr, 8, dark ? Color(1, 1, 1, 0.09f) : Color(0, 0, 0, 0.06f));
         TextStyle s2; s2.size = kFont; s2.weight = i == selCopy ? 600 : 400;
         p.Text({rr.x + 8, rr.y, rr.w - 32, rr.h}, itemsCopy[i], pal->text, s2);
         if (i == selCopy) p.Icon("check", rr.right() - 14, rr.cy(), 13, accent::base, 2.f);
@@ -576,7 +661,7 @@ float Ui::BeginScroll(const Rect& vp, float contentH, uint64_t id) {
   if (in_->inWindow && vp.Contains(in_->mx, in_->my) && popup_ == 0 && in_->wheel != 0) { s.y -= in_->wheel * 44.f; needFrame_ = true; }
   s.y = std::clamp(s.y, 0.f, maxY);
   scrollStack_.push_back(id);
-  p_->PushClip(vp);
+  if (maxY > 0) p_->PushFade(vp, s.y > 1.f ? 14.f : 0.f, s.y < maxY - 1.f ? 26.f : 0.f); else p_->PushClip(vp);
   // scroll bar
   if (maxY > 0) {
     const float trackH = vp.h - 8, thumbH = std::max(28.f, trackH * vp.h / contentH);

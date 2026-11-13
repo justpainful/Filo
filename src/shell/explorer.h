@@ -25,6 +25,10 @@ ExplorerContext QueryForegroundExplorer();
 // Paths from an OLE data object (CF_HDROP / shell ID list via SHCreateShellItemArrayFromDataObject).
 std::vector<fs::path> PathsFromDataObject(IDataObject* d);
 
+// Text a dragged link carries, most reliable source first: the browser's URL formats (UniformResourceLocatorW / UniformResourceLocator /
+// text/x-moz-url), then plain text. Callers pick the address out of it. Empty for file drags.
+std::vector<std::wstring> LinkTextsFromDataObject(IDataObject* d);
+
 // True when the window under the point belongs to an Explorer-style shell view (cheap class-name check).
 bool IsShellViewWindow(HWND hit);
 

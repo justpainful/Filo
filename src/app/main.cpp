@@ -17,6 +17,9 @@
 #include "ui/settings_window.h"
 #include "ui/progress_hud.h"
 #include "tools/tools.h"
+#include "engines/web/web.h"
+#include "ui/link_zone.h"
+#include "shell/browser_url.h"
 #include "registry/capability.h"
 #include "core/job.h"
 #include <shellapi.h>
@@ -29,7 +32,7 @@ static wheel::WheelContent SampleContent(const std::wstring& kind) {
   WheelContent c;
   if (kind == L"convert") {
     c.kind = WheelKind::Convert;
-    for (auto l : {L"JPG", L"WEBP", L"HEIC", L"TIFF", L"AVIF", L"BMP", L"PDF", L"DOCX"}) c.items.push_back({std::wstring(L"convert:") + l, l, "", true, L""});
+    for (auto l : {L"JPG", L"WEBP", L"HEIC", L"TIFF", L"AVIF", L"BMP", L"PDF", L"DOCX"}) c.items.push_back({std::wstring(L"convert:") + l, l, (l[0] == L'P' || l[0] == L'D') ? "document" : "image", true, L""});   // the real wheel takes these from selection.cpp (FormatIcon)
     c.centerPrimary = L"2.2 MB";
   } else if (kind == L"tools" || kind == L"tools9") {
     c.kind = WheelKind::Tools;
@@ -39,7 +42,7 @@ static wheel::WheelContent SampleContent(const std::wstring& kind) {
     if (kind == L"tools9") { c.items.push_back({L"tool:PDF", L"PDF", "document", true, L""}); c.items.push_back({L"tool:QR", L"QR", "qr", true, L""}); }
   } else {
     c.kind = WheelKind::Actions;
-    struct T { const wchar_t* l; const char* i; } t[] = {{L"Share", "share"}, {L"Float", "float"}, {L"Copy", "copy"}, {L"Move", "move"}, {L"Copy Path", "copypath"}, {L"Terminal", "terminal"}};
+    struct T { const wchar_t* l; const char* i; } t[] = {{L"Share", "share"}, {L"Float", "float"}, {L"Copy", "copy"}, {L"Move", "move"}, {L"Copy path", "copypath"}, {L"Terminal", "terminal"}};
     for (auto& x : t) c.items.push_back({std::wstring(L"action:") + x.l, x.l, x.i, true, L""});
   }
   return c;
@@ -57,7 +60,7 @@ static int RenderWheelMode(int argc, wchar_t** argv) {
     else if (a == L"--radius" && i + 1 < argc) radius = (float)_wtof(argv[++i]);
     else if (a == L"--hover" && i + 1 < argc) hover = _wtoi(argv[++i]);
     else if (a == L"--icon-pack" && i + 1 < argc) { auto state=ds::Theme::Get().State(); state.iconPack=Narrow(argv[++i]); ds::Theme::Get().SetUserState(state); }
-    else if (a == L"--acrylic" || a == L"--soft-glass" || a == L"--liquid-glass" || a == L"--glassy") { auto state=ds::Theme::Get().State(); state.glassStyle=a==L"--acrylic"?2:a==L"--soft-glass"?1:a==L"--glassy"?3:0; ds::Theme::Get().SetUserState(state); }
+    else if (a == L"--acrylic" || a == L"--soft-glass" || a == L"--liquid-glass" || a == L"--glassy" || a == L"--symbolic") { auto state=ds::Theme::Get().State(); state.glassStyle=a==L"--acrylic"?2:a==L"--soft-glass"?1:a==L"--glassy"?3:a==L"--symbolic"?4:0; ds::Theme::Get().SetUserState(state); }
     else if (a == L"--light") { ds::ThemeState s = ds::Theme::Get().State(); s.mode = ds::ThemeMode::Light; ds::Theme::Get().SetUserState(s); }
     else if (a == L"--dark") { ds::ThemeState s = ds::Theme::Get().State(); s.mode = ds::ThemeMode::Dark; ds::Theme::Get().SetUserState(s); }
   }
@@ -136,6 +139,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     // Filo.exe --settings-shot <out.png> [tab 0..3] : render the settings window hidden for visual review
     SettingsStore::Get().Load();
     { Settings st = SettingsStore::Get().Snapshot(); ds::ThemeState ts; ts.acrylicTransparency=st.acrylicTransparency; ts.acrylicBlur=st.acrylicBlur; ts.iconPack=st.iconPack; ts.mode = st.theme == 2 ? ds::ThemeMode::Dark : (st.theme == 0 ? ds::ThemeMode::System : ds::ThemeMode::Light); ds::Theme::Get().SetUserState(ts); }
+    for (int i = 4; i < argc; ++i) {
+      std::wstring a = argv[i];
+      if (a == L"--dark") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Dark; ds::Theme::Get().SetUserState(ts); }
+      else if (a == L"--light") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Light; ds::Theme::Get().SetUserState(ts); }
+    }
     auto* w = ui::SettingsWindow::Show(false, argc > 3 ? _wtoi(argv[3]) : 0);
     bool ok = w && w->TestShot(argv[2]);
     std::printf("settings shot %s\n", ok ? "ok" : "FAILED");
@@ -171,6 +179,64 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       ok = h->TestShot(argv[2]);
     }
     std::printf("hud shot %s\n", ok ? "ok" : "FAILED");
+    rc = ok ? 0 : 1;
+  } else if (argc > 1 && std::wstring(argv[1]) == L"--crash-test") {
+    // Filo.exe --crash-test : crashes on purpose to check the report + automatic restart (starts a --background instance afterwards)
+    crash::EnableRestartOnCrash(0);
+    volatile int* boom = nullptr;
+    *boom = 1;
+  } else if (argc > 1 && std::wstring(argv[1]) == L"--browser-urls") {
+    // Filo.exe --browser-urls : diagnostics for the download hotkey. For every open browser window prints the host of the page it shows.
+    struct Ctx { int n = 0; };
+    Ctx ctx;
+    EnumWindows([](HWND h, LPARAM l) -> BOOL {
+      if (!IsWindowVisible(h)) return TRUE;
+      wchar_t cls[96] = {}; GetClassNameW(h, cls, 96);
+      if (wcscmp(cls, L"Chrome_WidgetWin_1") && wcscmp(cls, L"MozillaWindowClass")) return TRUE;
+      wchar_t title[120] = {}; GetWindowTextW(h, title, 120);
+      if (!title[0]) return TRUE;
+      const std::wstring url = shell::BrowserPageUrl(h);
+      size_t s = url.find(L"://"); s = s == std::wstring::npos ? 0 : s + 3;
+      const std::wstring host = url.empty() ? std::wstring(L"(no address found)") : url.substr(s, url.find(L'/', s) == std::wstring::npos ? std::wstring::npos : url.find(L'/', s) - s);
+      std::printf("%ls  ->  %ls\n", cls, host.c_str());
+      ++reinterpret_cast<Ctx*>(l)->n;
+      return TRUE;
+    }, (LPARAM)&ctx);
+    std::printf("%d browser window(s)\n", ctx.n);
+    rc = 0;
+  } else if (argc > 3 && std::wstring(argv[1]) == L"--download-shot") {
+    // Filo.exe --download-shot <out.png> <fixture.json> [--dark|--light] [--wait] : render the Download from Link window hidden from a
+    // yt-dlp style JSON file (no probing), for visual review. --wait lets thumbnails of real picture URLs load first.
+    SettingsStore::Get().Load();
+    { Settings st = SettingsStore::Get().Snapshot(); ds::ThemeState ts; ts.acrylicTransparency=st.acrylicTransparency; ts.acrylicBlur=st.acrylicBlur; ts.iconPack=st.iconPack; ts.mode = st.theme == 2 ? ds::ThemeMode::Dark : (st.theme == 0 ? ds::ThemeMode::System : ds::ThemeMode::Light); ds::Theme::Get().SetUserState(ts); }
+    bool wait = false;
+    for (int i = 4; i < argc; ++i) {
+      std::wstring a = argv[i];
+      if (a == L"--dark") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Dark; ds::Theme::Get().SetUserState(ts); }
+      else if (a == L"--light") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Light; ds::Theme::Get().SetUserState(ts); }
+      else if (a == L"--wait") wait = true;
+    }
+    bool ok = false;
+    std::string text, jerr;
+    if (FILE* f = _wfopen(argv[3], L"rb")) { char buf[65536]; size_t n; while ((n = fread(buf, 1, sizeof buf, f)) > 0) text.append(buf, n); fclose(f); }
+    if (auto j = Json::Parse(text, &jerr)) {
+      web::LinkInfo li = web::ParseProbe(*j, Widen(j->Get("webpage_url").StringOr("https://example.com/post")));
+      if (auto* d = tools::OpenDownloadDialog(L"", &li, false)) {
+        const double t0 = NowSeconds(); MSG m;
+        while (NowSeconds() - t0 < (wait ? 6.0 : 0.3)) { while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&m); DispatchMessageW(&m); } Sleep(20); }
+        ok = d->RenderToPng(argv[2]);
+        d->CloseWindow();
+      }
+    }
+    std::printf("download shot %s\n", ok ? "ok" : "FAILED");
+    rc = ok ? 0 : 1;
+  } else if (argc > 2 && std::wstring(argv[1]) == L"--link-zone-shot") {
+    // Filo.exe --link-zone-shot <out.png> [0|1|2] : the link drop zone (0 waiting, 1 a link is over it, 2 not a link)
+    SettingsStore::Get().Load();
+    { Settings st = SettingsStore::Get().Snapshot(); ds::ThemeState ts; ts.acrylicTransparency=st.acrylicTransparency; ts.acrylicBlur=st.acrylicBlur; ts.iconPack=st.iconPack; ts.mode = st.theme == 2 ? ds::ThemeMode::Dark : (st.theme == 0 ? ds::ThemeMode::System : ds::ThemeMode::Light); ds::Theme::Get().SetUserState(ts); }
+    auto* z = ui::LinkZone::Create(POINT{900, 500}, false);
+    bool ok = z && z->TestShot(argv[2], argc > 3 ? _wtoi(argv[3]) : 0);
+    std::printf("link zone shot %s\n", ok ? "ok" : "FAILED");
     rc = ok ? 0 : 1;
   } else if (argc > 3 && std::wstring(argv[1]) == L"--float-shot") {
     SettingsStore::Get().Load();
@@ -226,6 +292,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       if (a == L"--dark") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Dark; ds::Theme::Get().SetUserState(ts); }
       else if (a == L"--light") { ds::ThemeState ts = ds::Theme::Get().State(); ts.mode = ds::ThemeMode::Light; ds::Theme::Get().SetUserState(ts); }
       else if (a == L"--glassy") { ds::ThemeState ts = ds::Theme::Get().State(); ts.glassStyle = 3; ds::Theme::Get().SetUserState(ts); }
+      else if (a == L"--symbolic") { ds::ThemeState ts = ds::Theme::Get().State(); ts.glassStyle = 4; ds::Theme::Get().SetUserState(ts); }
       else if (a == L"--at" && i + 1 < argc) { swscanf_s(argv[++i], L"%ld,%ld", &toolAt.x, &toolAt.y); haveAt = true; }
       else files.emplace_back(a);
     }
@@ -240,6 +307,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
       else if (s == L"--settings") a.openSettings = true;
       else if (s == L"--background") a.background = true;
       else if (s == L"--kind" && i + 1 < argc) a.wheelKind = argv[++i];
+      else if (s == L"--download" && i + 1 < argc) a.downloadUrl = argv[++i];
+      else if (s == L"--crash-restart" && i + 1 < argc) a.crashRestarts = _wtoi(argv[++i]);
+      else if (s == L"--wait-pid" && i + 1 < argc) {            // a restart after a crash waits for the crashed process to end (single-instance mutex)
+        if (HANDLE hp = OpenProcess(SYNCHRONIZE, FALSE, (DWORD)_wtoi(argv[++i]))) { WaitForSingleObject(hp, 15000); CloseHandle(hp); }
+      }
       else if (s == L"--wheel") {
         for (int j = i + 1; j < argc; ++j) {
           std::wstring p = argv[j];

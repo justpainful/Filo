@@ -132,6 +132,32 @@ void Painter::LiquidRim(const Rect& r, float radius, bool dark, float strength) 
     {.52f,D2D1::ColorF(1,1,1,.055f*k)}, {.72f,D2D1::ColorF(1,1,1,.10f*k)}, {1,D2D1::ColorF(1,1,1,.52f*k)}};
   stroke(.85f,1.2f,lip,5);
 }
+// ---- Symbolic Glass material -------------------------------------------------------------------------------------------
+// Values are the `menu` material of Symbolic's glass.presets.v0.3.json (menus, pop-ups and dialogs), calibrated by the owner:
+//   blur sigma 9 DIP (live layer), light veil tintAlphaLight .5, dark tintAlphaDark .02 with the backdrop passed at darkTransmission .38,
+//   rim: peak .8, width 1.16 DIP, inset .6 DIP, axial along 214 deg (bright top-left and bottom-right, dim across), directional share .55,
+//   dark rim gain .45, outline .65 DIP at alpha .165 (light) / .12 (dark), near shadow .08-.15 sigma 3.1 dy 9.2, far shadow .03 sigma 24 dy 9.
+void Painter::SymbolicShadow(const Rect& r, float radius, bool dark) {
+  // Symbolic's near + far pair, spread out so no hard band shows under the edge (the window margin is 30 dip, so the far blur is capped)
+  Shadow(r, radius, 30.f, Color(0, 0, 0, dark ? .10f : .06f), 12.f);      // far
+  Shadow(r, radius, 12.f, Color(0, 0, 0, dark ? .15f : .09f), 4.f);       // near
+}
+void Painter::SymbolicBody(const Rect& r, float radius, bool dark) {
+  FillRoundRect(r, radius, dark ? Color(.09f, .10f, .12f, .02f) : Color(1, 1, 1, .5f));
+}
+void Painter::SymbolicRim(const Rect& r, float radius, bool dark) {
+  const float gain = dark ? .45f : 1.f;
+  StrokeRoundRect(r.Inset(.325f), std::max(0.f, radius - .325f), dark ? Color(1, 1, 1, .12f) : Color(0, 0, 0, .165f), .65f);
+  // axis 214 deg: the lit ends are the top-left and the bottom-right corners, the sides across the axis keep the directional remainder
+  D2D1_GRADIENT_STOP stops[] = {{0, D2D1::ColorF(1, 1, 1, .80f * gain)}, {.25f, D2D1::ColorF(1, 1, 1, .45f * gain)}, {.5f, D2D1::ColorF(1, 1, 1, .16f * gain)},
+                                {.75f, D2D1::ColorF(1, 1, 1, .45f * gain)}, {1, D2D1::ColorF(1, 1, 1, .80f * gain)}};
+  ComPtr<ID2D1GradientStopCollection> gc; ComPtr<ID2D1LinearGradientBrush> brush;
+  if (FAILED(dc_->CreateGradientStopCollection(stops, 5, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP, &gc))) return;
+  if (FAILED(dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(r.x, r.y), D2D1::Point2F(r.right(), r.bottom())), gc.Get(), &brush))) return;
+  const Rect box = r.Inset(.6f + .58f);
+  const float rr = std::max(0.f, radius - 1.18f);
+  dc_->DrawRoundedRectangle(D2D1::RoundedRect(box.D2D(), rr, rr), brush.Get(), 1.16f);
+}
 // ---- Glassy UI material -------------------------------------------------------------------------------------------------
 // Values are the ones in the glassyui library (styles/liquid.css) for a dialog slab (GlassPanel preset "prominent", raised, lens):
 //   --lg-slab-tint        dark rgb(28 28 30 / .30)   light rgb(255 255 255 / .80)
@@ -236,6 +262,17 @@ void Painter::Shadow(const Rect& r, float radius, float blur, const Color& c, fl
 void Painter::PushClip(const Rect& r) {
   dc_->PushAxisAlignedClip(r.D2D(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
   clips_.push_back({false});
+}
+void Painter::PushFade(const Rect& r, float topFade, float bottomFade) {
+  const float h = std::max(1.f, r.h);
+  const float t = std::clamp(topFade / h, 0.f, 0.45f), b = std::clamp(bottomFade / h, 0.f, 0.45f);
+  D2D1_GRADIENT_STOP stops[4] = {{0.f, D2D1::ColorF(0, 0, 0, t > 0 ? 0.f : 1.f)}, {std::max(t, 0.0001f), D2D1::ColorF(0, 0, 0, 1.f)},
+                                 {std::min(1.f - b, 0.9999f), D2D1::ColorF(0, 0, 0, 1.f)}, {1.f, D2D1::ColorF(0, 0, 0, b > 0 ? 0.f : 1.f)}};
+  ComPtr<ID2D1GradientStopCollection> gc; ComPtr<ID2D1LinearGradientBrush> brush;
+  if (FAILED(dc_->CreateGradientStopCollection(stops, 4, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP, &gc)) ||
+      FAILED(dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(r.x, r.y), D2D1::Point2F(r.x, r.bottom())), gc.Get(), &brush))) { PushClip(r); return; }
+  dc_->PushLayer(D2D1::LayerParameters1(r.D2D(), nullptr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::IdentityMatrix(), 1.f, brush.Get(), D2D1_LAYER_OPTIONS1_NONE), nullptr);
+  clips_.push_back({true});
 }
 void Painter::PushClipRoundRect(const Rect& r, float radius) {
   ComPtr<ID2D1RoundedRectangleGeometry> g;

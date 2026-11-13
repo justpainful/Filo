@@ -106,7 +106,7 @@ class CompressDialog : public ToolDialog {
 
  protected:
   DialogOptions Options() const override {
-    DialogOptions o; o.title = L"Compress"; o.widthDip = 470; o.heightDip = 500; o.rtl = SettingsStore::Get().Snapshot().language == L"ar";
+    DialogOptions o; o.title = L"Compress"; o.widthDip = 470; o.heightDip = 440; o.rtl = SettingsStore::Get().Snapshot().language == L"ar";
     return o;
   }
   std::string ToolId() const override { return "compress"; }
@@ -125,6 +125,13 @@ class CompressDialog : public ToolDialog {
     return ToolDialog::OnMessage(msg, wp, lp);
   }
 
+  // icon + label of a row (18 DIP icon, weight matching the text)
+  static void RowLabel(Painter& p, const Palette& pal, const Rect& r, const wchar_t* text, const char* icon) {
+    p.Icon(icon, r.x + 11, r.cy(), 18, pal.textSecondary, 1.9f);
+    TextStyle ls; ls.size = dialog::bodyFontSize;
+    p.Text({r.x + 30, r.y, r.w - 30, r.h}, text, pal.text, ls);
+  }
+
   void Draw(Ui& ui, const Rect& content, const Rect&) override {
     const Palette& pal = ui.Pal();
     Painter& p = ui.P();
@@ -134,7 +141,7 @@ class CompressDialog : public ToolDialog {
     // ---- what is being compressed
     {
       Rect r = ui.Take(54);
-      p.FillRoundRect(r, 14, pal.fieldFill);
+      p.FillRoundRect(r, 14, Theme::Get().IsDark() ? Color(1, 1, 1, 0.07f) : Color(0, 0, 0, 0.055f));      // the quiet surface of the other controls
       TextStyle t; t.size = dialog::bodyFontSize; t.weight = 600;
       std::wstring title = selection_.count() == 1 ? NameOf(selection_.items[0].path) : std::to_wstring(selection_.count()) + L" files";
       p.Text({r.x + 14, r.y + 6, r.w - 28, 24}, title, pal.text, t);
@@ -144,17 +151,15 @@ class CompressDialog : public ToolDialog {
     bool changed = false;
     {
       Rect row = ui.Take(30);
-      auto c = ui.Cols(row, {Fixed(96), Flex(1)}, 8);
-      TextStyle ls; ls.size = dialog::bodyFontSize;
-      p.Text(c[0], L"Mode", pal.text, ls);
+      auto c = ui.Cols(row, {Fixed(132), Flex(1)}, 8);
+      RowLabel(p, pal, c[0], L"Mode", "sliders");
       int m = ui.Segmented(c[1], {L"Preset", L"Target size", L"Percentage"}, cp_.mode);
       if (m != cp_.mode) { cp_.mode = m; changed = true; }
     }
     if (cp_.mode == 0) {
       Rect row = ui.Take(30);
-      auto c = ui.Cols(row, {Fixed(96), Flex(1)}, 8);
-      TextStyle ls; ls.size = dialog::bodyFontSize;
-      p.Text(c[0], L"Compression", pal.text, ls);
+      auto c = ui.Cols(row, {Fixed(132), Flex(1)}, 8);
+      RowLabel(p, pal, c[0], L"Compression", "compress");
       int v = ui.Segmented(c[1], {L"Light", L"Balanced", L"Strong"}, cp_.preset);
       if (v != cp_.preset) { cp_.preset = v; changed = true; }
       TextStyle hs; hs.size = dialog::smallFontSize; hs.wrap = true; hs.vcenter = false;
@@ -163,9 +168,8 @@ class CompressDialog : public ToolDialog {
       p.Text(h, tips[std::clamp(cp_.preset, 0, 2)], pal.textTertiary, hs);
     } else if (cp_.mode == 1) {
       Rect row = ui.Take(30);
-      auto c = ui.Cols(row, {Fixed(96), Fixed(140), Flex(1)}, 8);
-      TextStyle ls; ls.size = dialog::bodyFontSize;
-      p.Text(c[0], L"Target size", pal.text, ls);
+      auto c = ui.Cols(row, {Fixed(132), Fixed(150), Flex(1)}, 8);
+      RowLabel(p, pal, c[0], L"Target size", "document");
       double v = cp_.targetMB;
       if (ui.Stepper(c[1], v, 0.05, 20000, v < 5 ? 0.1 : 1.0, 2, L"MB")) { cp_.targetMB = v; changed = true; }
       Rect h = ui.Take(34);
@@ -178,20 +182,22 @@ class CompressDialog : public ToolDialog {
     }
     if (hasImage_ || hasVideo_) {
       Rect row = ui.Take(30);
-      auto c = ui.Cols(row, {Fixed(96), Flex(1)}, 8);
-      TextStyle ls; ls.size = dialog::bodyFontSize;
-      p.Text(c[0], hasVideo_ && !hasImage_ ? L"Resolution" : L"Max size", pal.text, ls);
+      auto c = ui.Cols(row, {Fixed(132), Flex(1)}, 8);
+      RowLabel(p, pal, c[0], hasVideo_ && !hasImage_ ? L"Resolution" : L"Max size", "zoom");
       const bool vid = hasVideo_ && !hasImage_;
       std::vector<std::wstring> items = vid ? std::vector<std::wstring>{L"Original", L"1440p", L"1080p", L"720p", L"480p"} : std::vector<std::wstring>{L"Original", L"4096 px", L"2560 px", L"1920 px", L"1280 px"};
       const int vals_img[] = {0, 4096, 2560, 1920, 1280}, vals_vid[] = {0, 1440, 1080, 720, 480};
       const int* vals = vid ? vals_vid : vals_img;
       int cur = 0; for (int i = 0; i < 5; ++i) if (vals[i] == cp_.maxSide) cur = i;
       int nv = cur;
-      if (ui.Dropdown(c[1], items, nv) && nv != cur) { cp_.maxSide = vals[nv]; changed = true; }
+      if (ui.Dropdown({c[1].x, c[1].y, std::min(c[1].w, 170.f), c[1].h}, items, nv) && nv != cur) { cp_.maxSide = vals[nv]; changed = true; }      // compact, like the other pop-ups
     }
     {
-      Rect row = ui.Take(26);
-      if (ui.Checkbox(row, L"Keep metadata (date, camera, tags)", cp_.keepMetadata)) changed = true;
+      Rect row = ui.Take(30);
+      RowLabel(p, pal, row, L"Keep metadata (date, camera, tags)", "metadata");
+      ui.PushId(0xC0E7A);
+      if (ui.Toggle(ui.Mirror({row.right() - 38, row.y + 2, 38, 26}, row), cp_.keepMetadata)) changed = true;      // a switch, like the settings
+      ui.PopId();
     }
     ui.EndColumn();
     if (changed) { estDirty_ = true; est_.clear(); }
@@ -226,14 +232,14 @@ class CompressDialog : public ToolDialog {
         rq.preset = cp.preset == 0 ? img::CompressPreset::Low : (cp.preset == 1 ? img::CompressPreset::Medium : img::CompressPreset::High);
         rq.targetBytes = (uint64_t)(cp.targetMB * 1e6); rq.percentReduction = (int)std::lround(cp.percent); rq.maxSide = cp.maxSide;
         img::SizeEstimate e = img::EstimateCompressedSize(rq);
-        if (e.ok) text = L"\x2192 about " + FormatBytes(e.bytes) + L" (" + Percent(k.size, e.bytes) + L")";
+        if (e.ok) text = e.bytes >= k.size ? std::wstring(L"already as small as it gets") : L"\x2192 about " + FormatBytes(e.bytes) + L" (" + Percent(k.size, e.bytes) + L")";
       } else if (k.group == Group::Video || k.group == Group::Audio) {
         media::CompressRequest rq;
         rq.mode = cp.mode == 0 ? media::CompressMode::Preset : (cp.mode == 1 ? media::CompressMode::TargetSize : media::CompressMode::Percent);
         rq.preset = cp.preset == 0 ? media::CompressPreset::High : (cp.preset == 1 ? media::CompressPreset::Balanced : media::CompressPreset::Small);
         rq.targetBytes = (uint64_t)(cp.targetMB * 1e6); rq.percentSmaller = cp.percent; rq.maxHeight = k.group == Group::Video ? cp.maxSide : 0;
         media::SizeEstimate e = media::EstimateCompressedSize(k.path, rq);
-        if (e.bytes) text = (e.feasible ? L"\x2192 about " : L"\x2192 target too small: about ") + FormatBytes(e.bytes) + L" (" + Percent(k.size, e.bytes) + L")";
+        if (e.bytes) text = e.bytes >= k.size && e.feasible ? std::wstring(L"already as small as it gets") : (e.feasible ? L"\x2192 about " : L"\x2192 target too small: about ") + FormatBytes(e.bytes) + L" (" + Percent(k.size, e.bytes) + L")";
       }
       { std::lock_guard lk(sh->m); if (sh->seq == seq) sh->text = text; }
       if (hw) PostMessageW(hw, WM_COMPRESS_EST, 0, 0);

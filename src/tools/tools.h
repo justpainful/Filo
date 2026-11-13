@@ -13,6 +13,8 @@
 #include <filesystem>
 #include <windows.h>
 
+namespace filo::web { struct LinkInfo; }
+
 namespace filo::tools {
 
 using MakeToolFn = ToolDialog* (*)(const Selection&);
@@ -39,6 +41,10 @@ ToolDialog* OpenTool(const std::string& toolId, const Selection& sel);
 // Built-in factories
 ToolDialog* MakeJoinVideos(const Selection& sel);
 ToolDialog* MakeEditPhoto(const Selection& sel);
+
+// The "Download from Link" window. `url` may be empty (the user pastes one). `fixture` skips the network and shows a ready-made
+// LinkInfo (visual tests). `show=false` keeps it hidden.
+ui::DialogWindow* OpenDownloadDialog(const std::wstring& url, const web::LinkInfo* fixture = nullptr, bool show = true);
 
 ui::DialogWindow* OpenFloatShelf(const std::vector<fs::path>& files, bool expanded = false, bool show = true);
 bool FloatShelfShot(const std::vector<fs::path>& files, const fs::path& png, bool expanded = false);   // hidden render of the Float shelf

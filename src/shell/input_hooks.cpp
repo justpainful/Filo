@@ -103,6 +103,7 @@ LRESULT CALLBACK InputHooks::KeyProc(int code, WPARAM w, LPARAM l) {
         uint32_t m = 0;
         if (self.keyState_[VK_LSHIFT] || self.keyState_[VK_RSHIFT]) m |= ModShift;
         if (self.keyState_[VK_LCONTROL] || self.keyState_[VK_RCONTROL]) m |= ModCtrl;
+        if (self.keyState_[VK_RCONTROL]) m |= ModRightCtrl;
         if (self.keyState_[VK_LMENU] || self.keyState_[VK_RMENU]) m |= ModAlt;
         if (self.keyState_[VK_LWIN] || self.keyState_[VK_RWIN]) m |= ModWin;
         uint32_t old = self.mods_.exchange(m);

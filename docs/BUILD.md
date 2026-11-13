@@ -48,5 +48,5 @@ Helper scripts for comparing against the reference screenshots are in `tools\*.p
 pwsh scripts\package.ps1 [-Config Release] [-Suffix _rel] [-Version 1.0.0] [-FfmpegDir <dir>]
 ```
 
-Stages `Filo.exe`, `pdfium.dll`, `tools\ffmpeg.exe`, `tools\ffprobe.exe`, `tools\exiftool\...` and `licenses\` into `build\stage`, then compiles `installer\filo.iss`
+Stages `Filo.exe`, `pdfium.dll`, `tools\ffmpeg.exe`, `tools\ffprobe.exe`, `tools\yt-dlp.exe` + `tools\yt-dlp-plugins\` (link downloads), `tools\exiftool\...` and `licenses\` into `build\stage`, then compiles `installer\filo.iss`
 with Inno Setup 6 into `dist\Filo-Setup-<version>.exe`. See RELEASE.md.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(Filo VERSION 0.1.7 LANGUAGES C CXX RC)
+project(Filo VERSION 0.3.0 LANGUAGES C CXX RC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -72,7 +72,7 @@ filo_module(registry)
 filo_module(ui)
 filo_module(tools)
 
-filo_link(core shlwapi ole32 oleaut32 shell32 advapi32 user32 uuid version shcore)
+filo_link(core shlwapi ole32 oleaut32 shell32 advapi32 user32 uuid version shcore winhttp)
 filo_link(design filo_core)
 filo_link(gfx filo_core filo_design d3d11 dxgi d2d1 dwrite dcomp dwmapi d3dcompiler windowscodecs dxguid gdi32 windowsapp CoreMessaging)
 filo_link(registry filo_core)
@@ -125,7 +125,7 @@ foreach(_d ${_engine_dirs})
 endforeach()
 # Engines the tool dialogs call directly (headless operation APIs). Override with -DFILO_TOOL_ENGINES=media to build the UI
 # against a subset while other engines are still being written.
-set(FILO_TOOL_ENGINES "media;image;pdf;meta;archive;doc" CACHE STRING "Engine libraries linked into the tool dialogs")
+set(FILO_TOOL_ENGINES "media;image;pdf;meta;archive;doc;web" CACHE STRING "Engine libraries linked into the tool dialogs")
 foreach(_e ${FILO_TOOL_ENGINES})
   if(TARGET filo_eng_${_e})
     target_link_libraries(filo_tools PUBLIC filo_eng_${_e})

@@ -10,7 +10,7 @@ struct Fake : IDragServices {
   bool dragImage = true, shell = true;
   std::vector<std::filesystem::path> sel{L"C:\\a.png"};
   POINT cursor{500, 400};
-  int opens = 0, switches = 0, closes = 0, prefetches = 0;
+  int opens = 0, switches = 0, closes = 0, prefetches = 0, zones = 0;
   WheelKind lastKind = WheelKind::Convert;
   bool menuSuppressed = false;
   std::vector<int> timers;
@@ -24,6 +24,7 @@ struct Fake : IDragServices {
   void ArmTimer(int id, unsigned) override { timers.push_back(id); }
   void KillTimer(int id) override { for (auto it = timers.begin(); it != timers.end();) it = (*it == id) ? timers.erase(it) : it + 1; }
   void SuppressMenuActivation(bool on) override { menuSuppressed = on; }
+  void OpenLinkZone(POINT) override { ++zones; }
 };
 void Settle(DragSession& s) { s.OnTimer(DragSession::kSettle); }
 }
@@ -133,4 +134,52 @@ TEST(drag_disabled_ignores_everything) {
   Fake f; DragSession s(&f); s.SetEnabled(false);
   s.OnLeftDown({0, 0}); s.OnDragMoved(); s.OnModsChanged(ModShift); Settle(s);
   CHECK_EQ(f.opens, 0);
+}
+
+TEST(drag_right_ctrl_on_a_browser_drag_opens_the_link_zone) {
+  Fake f; f.shell = false; DragSession s(&f);
+  s.OnLeftDown({100, 100}); s.OnDragMoved();
+  s.OnModsChanged(ModCtrl | ModRightCtrl); Settle(s);
+  CHECK_EQ(f.zones, 1); CHECK_EQ(f.opens, 0);
+  CHECK(s.state() == DragSession::State::WheelOpen);
+  s.OnModsChanged(0); Settle(s);                       // releasing the key keeps the zone until the drop
+  CHECK_EQ(f.closes, 0); CHECK(s.WheelOpen());
+  s.OnLeftUp();
+  s.OnDropHandled();
+  CHECK_EQ(f.closes, 1);
+  CHECK(s.state() == DragSession::State::Idle);
+}
+
+TEST(drag_right_ctrl_on_explorer_files_still_opens_the_actions_wheel) {
+  Fake f; f.shell = true; DragSession s(&f);
+  s.OnLeftDown({100, 100}); s.OnDragMoved();
+  s.OnModsChanged(ModCtrl | ModRightCtrl); Settle(s);
+  CHECK_EQ(f.zones, 0); CHECK_EQ(f.opens, 1); CHECK(f.lastKind == WheelKind::Actions);
+}
+
+TEST(drag_left_ctrl_never_opens_the_link_zone) {
+  Fake f; f.shell = false; DragSession s(&f);
+  s.OnLeftDown({100, 100}); s.OnDragMoved();
+  s.OnModsChanged(ModCtrl); Settle(s);
+  CHECK_EQ(f.zones, 0); CHECK_EQ(f.opens, 1); CHECK(f.lastKind == WheelKind::Actions);
+}
+
+TEST(drag_link_zone_needs_a_real_drag_and_can_be_turned_off) {
+  { Fake f; f.shell = false; f.dragImage = false; DragSession s(&f);
+    s.OnLeftDown({0, 0}); s.OnDragMoved(); s.OnModsChanged(ModCtrl | ModRightCtrl); Settle(s);
+    CHECK_EQ(f.zones, 0); }
+  { Fake f; f.shell = false; DragSession s(&f); s.SetLinkDownloads(false);
+    s.OnLeftDown({0, 0}); s.OnDragMoved(); s.OnModsChanged(ModCtrl | ModRightCtrl); Settle(s);
+    CHECK_EQ(f.zones, 0); CHECK_EQ(f.opens, 1); }
+}
+
+TEST(drag_another_wheel_shortcut_replaces_the_link_zone) {
+  Fake f; f.shell = false; DragSession s(&f);
+  s.OnLeftDown({0, 0}); s.OnDragMoved();
+  s.OnModsChanged(ModCtrl | ModRightCtrl); Settle(s);
+  CHECK_EQ(f.zones, 1);
+  s.OnModsChanged(0); Settle(s);
+  s.OnModsChanged(ModShift); Settle(s);
+  CHECK_EQ(f.opens, 1); CHECK(f.lastKind == WheelKind::Convert); CHECK(f.closes >= 1);
+  CHECK(s.state() == DragSession::State::WheelOpen);
 }

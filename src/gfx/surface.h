@@ -63,6 +63,8 @@ class Surface {
   virtual LRESULT OnMessage(UINT msg, WPARAM wp, LPARAM lp);   // return handled-ness via *handled
   virtual void OnResized(int wPx, int hPx) {}
   virtual void OnDeviceReset(bool rebuilt) {}                  // GPU resources owned by subclass
+  // OnRender raised an exception (a drawing bug): put the surface back into a state where the next frame can start cleanly.
+  virtual void OnRenderFault() {}
   // A self-owning dialog must finish rendering/message dispatch before deletion.
   bool InDispatch() const { return dispatchDepth_ > 0 || rendering_; }
   virtual void OnDeferredClose() { Destroy(); }
@@ -89,6 +91,8 @@ class Surface {
   int lostListener_ = 0;
   int dispatchDepth_ = 0;
   bool rendering_ = false;
+  int renderFaults_ = 0;                                         // consecutive frames that faulted
+  bool RenderGuarded(ID3D11RenderTargetView* rtv, ID3D11Texture2D* bb, int w, int h);   // OnRender inside __try (no unwinding locals)
   float blurRadius_ = -1; int blurInset_ = 1; RECT blurRect_{0, 0, 0, 0}; bool blurHasRect_ = false;
   void ApplyBlurRegion();
 

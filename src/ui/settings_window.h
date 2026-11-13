@@ -22,7 +22,7 @@ class SettingsWindow : public DialogWindow {
   void Wheels(Ui& ui, const Rect& vp, Settings& s, float& y);
   void Appearance(Ui& ui, const Rect& vp, Settings& s, float& y);
   void Files(Ui& ui, const Rect& vp, Settings& s, float& y);
-  bool ShortcutRow(Ui& ui, const Rect& vp, float& y, const wchar_t* label, int slot, Shortcut& sc, bool needsKey);
+  bool ShortcutRow(Ui& ui, const Rect& vp, float& y, const wchar_t* label, int slot, Shortcut& sc, bool needsKey, int* rows = nullptr);
   void PollCapture(Shortcut* target, bool needsKey);
 
   int tab_ = 0;

@@ -20,6 +20,8 @@ class IconCache {
   bool Draw(ID2D1DeviceContext* dc, std::string_view name, float cx, float cy, float sizePx, ID2D1Brush* brush, float stroke = 1.7f);
   // Explicit pack drawing for settings previews; normal Draw follows the active appearance.
   bool DrawPack(ID2D1DeviceContext* dc, std::string_view pack, std::string_view name, float cx, float cy, float sizePx, ID2D1Brush* brush, float stroke = 1.7f);
+  // Scale (about 0.82..1.18) that makes the glyph's ink fill the same 18-unit box as every other icon: used where icons sit side by side (the wheel).
+  float OpticalScale(std::string_view name);
   static std::vector<std::string> Names();
   bool Has(std::string_view name) const;
   void Clear();   // on device loss

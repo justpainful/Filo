@@ -212,7 +212,7 @@ void RegisterShellActions(HWND owner) {
     std::vector<fs::path> p; for (auto& i : s.items) p.push_back(i.path);
     std::wstring err; if (!MoveFilesInteractive(p, g_owner, &err) && !err.empty()) MessageBoxW(g_owner, err.c_str(), L"Filo", MB_OK | MB_ICONWARNING);
   }});
-  reg.AddAction({"copypath", L"Copy Path", "copypath", anyFiles, [](const Selection& s) {
+  reg.AddAction({"copypath", L"Copy path", "copypath", anyFiles, [](const Selection& s) {
     std::vector<fs::path> p; for (auto& i : s.items) p.push_back(i.path);
     bool quoted = (GetKeyState(VK_SHIFT) & 0x8000) != 0;      // hold Shift while choosing to get quoted paths
     CopyPathsToClipboard(p, quoted);

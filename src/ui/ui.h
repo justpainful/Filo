@@ -36,6 +36,13 @@ struct InputState {
   void ClearTransient() { pressed = released = dbl = rpressed = false; wheel = 0; chars.clear(); keys.clear(); }
 };
 
+// One step of Follow: exponential approach, ~95 % of the distance in `seconds`, snapping onto the target when it is closer than 0.0008.
+inline float FollowStep(float v, float target, float dt, float seconds) {
+  const float k = 1.f - std::exp(-dt / std::max(seconds * 0.30f, 0.001f));
+  v += (target - v) * k;
+  return std::fabs(target - v) < 0.0008f ? target : v;
+}
+
 struct Col { float fixed = -1, flex = 0; };
 inline Col Fixed(float w) { return {w, 0}; }
 inline Col Flex(float f = 1) { return {-1, f}; }
@@ -96,7 +103,10 @@ class Ui {
   void Focus(uint64_t id) { focus_ = id; focusVisible_ = false; RequestFrame(); }
   void CancelPointer() { active_=hot_=hotNext_=0; RequestFrame(); }
   bool Focused(uint64_t id) const { return focus_ == id; }
-  float Anim(uint64_t id, float target, float seconds = ds::motion::uiFast);   // eased 0..1 follow
+  float Anim(uint64_t id, float target, float seconds = ds::motion::uiFast);   // eased 0..1 follow (a progress value: it only rests exactly on 0 or 1)
+  // A value that glides to ANY target and rests exactly on it (positions, e.g. the lens of a segmented control). Anim eases the progress, so
+  // for a target of 1/3 it rests at 0.26: that put the lens off its tab in tab bars of four or more items.
+  float Follow(uint64_t id, float target, float seconds = ds::motion::uiSelect);
   bool WantsEscape() const;                                                    // a popup or text field consumes Esc/Enter
   void SetCursor(int idcCursor) { cursor_ = idcCursor; }                       // IDC_HAND etc., applied by the window
   int CursorWanted() const { return cursor_; }
@@ -110,7 +120,8 @@ class Ui {
   bool IconButton(const Rect& r, const std::string& icon, bool enabled = true, const std::wstring& tip = L"", bool filled = true);
   void SetCloseBubbleProvider(std::function<bool(const Rect&)> callback) { closeBubble_=std::move(callback); }
   bool CloseButton(const Rect& r, bool glass = true, bool enabled = true);                                                // the circular title-bar close button
-  int Segmented(const Rect& r, const std::vector<std::wstring>& labels, int selected, bool enabled = true);   // returns new selection
+  // A track with a glass lens that slides to the selected item. `icons` (optional, one per label) are drawn left of the labels.
+  int Segmented(const Rect& r, const std::vector<std::wstring>& labels, int selected, bool enabled = true, const std::vector<std::string>& icons = {});   // returns new selection
   bool Toggle(const Rect& r, bool& v, bool enabled = true);
   bool Checkbox(const Rect& r, const std::wstring& label, bool& v, bool enabled = true);
   bool Slider(const Rect& r, float& v, float lo, float hi, float step = 0, float neutral = NAN, bool enabled = true);

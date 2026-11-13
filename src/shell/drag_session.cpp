@@ -17,6 +17,7 @@ void DragSession::Reset(bool animate) {
   svc_->KillTimer(kSettle); svc_->KillTimer(kGrace); svc_->KillTimer(kProbe);
   sawDragImage_ = false;
   if (state_ == State::WheelOpen || state_ == State::Closing) svc_->CloseWheel(animate);
+  zoneOpen_ = false;
   svc_->SuppressMenuActivation(false);
   state_ = State::Idle;
   prefetched_.clear();
@@ -43,6 +44,8 @@ void DragSession::OnDragMoved() {
 }
 
 void DragSession::OnModsChanged(uint32_t mods) {
+  rightCtrl_ = (mods & ModRightCtrl) != 0;
+  mods &= ~(uint32_t)ModRightCtrl;
   mods_ = mods;
   if (!enabled_) return;
   if (state_ == State::Dragging || state_ == State::WheelOpen) {
@@ -52,16 +55,38 @@ void DragSession::OnModsChanged(uint32_t mods) {
 }
 
 void DragSession::TryOpen(uint32_t mods) {
-  WheelKind k;
-  if (!MatchWheel(mods, &k)) return;
+  // Right Ctrl on a drag that did not start in Explorer / on the Desktop is a link being dragged out of a browser.
+  const bool wantZone = linkDownloads_ && rightCtrl_ && !downOnShell_;
+  WheelKind k = WheelKind::Convert;
   if (state_ == State::WheelOpen) {
-    if (k != kind_) { kind_ = k; svc_->SwitchWheel(k); }
+    if (zoneOpen_) {
+      // the zone stays until the drop; another wheel's shortcut (without Right Ctrl) replaces it
+      if (!rightCtrl_ && MatchWheel(mods, &k)) {
+        svc_->CloseWheel(false);
+        zoneOpen_ = false; kind_ = k; state_ = State::WheelOpen;
+        svc_->OpenWheel(k, svc_->CursorPos(), prefetched_);
+      }
+      return;
+    }
+    if (wantZone) {
+      svc_->CloseWheel(false);
+      state_ = State::WheelOpen; zoneOpen_ = true;
+      svc_->OpenLinkZone(svc_->CursorPos());
+      return;
+    }
+    if (MatchWheel(mods, &k) && k != kind_) { kind_ = k; svc_->SwitchWheel(k); }
     return;
   }
   if (state_ != State::Dragging) return;
+  if (!wantZone && !MatchWheel(mods, &k)) return;
   // Only a genuine OLE drag may open the wheel (not rubber-band selection or text selection).
   if (!sawDragImage_ && !svc_->DragImageWindowExists()) return;
   POINT cur = svc_->CursorPos();
+  if (wantZone) {
+    state_ = State::WheelOpen; zoneOpen_ = true;
+    svc_->OpenLinkZone(cur);
+    return;
+  }
   if (downOnShell_) prefetched_ = svc_->PrefetchSelection(down_);
   kind_ = k;
   state_ = State::WheelOpen;
@@ -101,6 +126,7 @@ void DragSession::OnDropHandled() {
 void DragSession::OnWheelClosedExternally() {
   svc_->KillTimer(kSettle); svc_->KillTimer(kGrace); svc_->KillTimer(kProbe);
   svc_->SuppressMenuActivation(false);
+  zoneOpen_ = false;
   state_ = State::Idle;
 }
 

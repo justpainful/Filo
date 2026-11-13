@@ -7,7 +7,9 @@
 
 namespace filo {
 
-enum Mod : uint32_t { ModNone = 0, ModShift = 1, ModCtrl = 2, ModAlt = 4, ModWin = 8 };
+// ModRightCtrl is only ever set in the input hook's event mask (together with ModCtrl) so that Right Ctrl can be told apart from
+// Left Ctrl while dragging a link. It is never stored in a Shortcut.
+enum Mod : uint32_t { ModNone = 0, ModShift = 1, ModCtrl = 2, ModAlt = 4, ModWin = 8, ModRightCtrl = 16 };
 
 struct Shortcut {
   uint32_t mods = 0;      // Mod flags that must be down
@@ -36,12 +38,22 @@ struct Settings {
   Shortcut toolsWheel{ModAlt, 0};
   Shortcut actionsWheel{ModCtrl, 0};
   Shortcut invokeKeyboard{ModCtrl | ModAlt, 'F'};   // opens the wheel for the selected Explorer items
+  Shortcut downloadHotkey{ModCtrl | ModAlt, 'D'};   // Download from Link: the page open in the browser, or the link just copied
   int dragThresholdPx = 0;                          // 0 = system default
   bool keepWheelOpenOnKeyRelease = true;
+  // Link downloads (drag a link, press Right Ctrl)
+  bool linkDownloads = true;
+  std::wstring downloadFolder;                      // empty = the Windows Downloads folder
+  int downloadFolderThreshold = 4;                  // this many files or more are put in a folder of their own (0 = never)
+  int downloadQuality = 0;                          // 0 best available, 1 most compatible (H.264 + AAC in MP4)
+  bool downloadSaveText = true;                     // also save the post's text (caption, tweet) as a .txt next to the files
+  int downloadCookies = 0;                          // sign-in used for sites that hide accounts from visitors: 0 none, 1 Firefox, 2 Chrome, 3 Edge, 4 cookies.txt
+  std::wstring downloadCookiesFile;                 // the cookies.txt (Netscape format) when downloadCookies == 4
+  int downloadParallel = 3;                         // posts of an account downloaded at the same time (1..4)
   // Appearance
-  int theme = 1;                 // 0 system, 1 light (default: matches the reference), 2 dark
-  std::string iconPack = "classic"; // Stable plugin ID; existing users retain the original icons.
-  int glassStyle = 0;             // 0 Liquid Glass, 1 Soft Glass (0.1.2 material), 2 Windows Acrylic, 3 Glassy UI
+  int theme = 1;                // 0 system, 1 light (default: matches the reference), 2 dark
+  std::string iconPack = "symbolic"; // Stable plugin ID. "symbolic" (Symbolic Style) is the default since 0.1.8; "classic", pebble, circuit, facet stay available.
+  int glassStyle = 4;             // 0 Liquid Glass, 1 Soft Glass (0.1.2 material), 2 Windows Acrylic, 3 Glassy UI, 4 Symbolic Glass (default since 0.1.8)
   float glassReflections = 0.65f;
   float glassRefraction = 1.0f;
   float acrylicTransparency = .85f; // 0 opaque, 1 maximum colour transfer

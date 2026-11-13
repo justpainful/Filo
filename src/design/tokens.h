@@ -25,10 +25,10 @@ constexpr Color Mix(const Color& x, const Color& y, float t) {
 // ------------------------------------------------------------------------------------------------ brand / accent
 // The reference uses orange as its accent; Filo's official accent is a friendly medium blue (not navy).        [W]
 namespace accent {
-constexpr Color base     = Color::Hex(0x3B8BFF);   // Filo Blue
-constexpr Color hover    = Color::Hex(0x5BA0FF);
-constexpr Color pressed  = Color::Hex(0x2E78EA);
-constexpr Color soft     = Color::Hex(0x3B8BFF, 0.18f);
+constexpr Color base     = Color::Hex(0x0A84FF);   // Symbolic accent (#007AFF light / #0A84FF dark; the brighter one works on glass in both)
+constexpr Color hover    = Color::Hex(0x3A9BFF);
+constexpr Color pressed  = Color::Hex(0x0071E3);
+constexpr Color soft     = Color::Hex(0x0A84FF, 0.16f);
 constexpr Color onAccent = Color::Hex(0xFFFFFF);
 }
 
@@ -52,16 +52,16 @@ struct Palette {
 };
 
 constexpr Palette kLight = {
-  /*text*/ Color::Hex(0x1C1C1E),
-  /*textSecondary*/ Color::Hex(0x3B424D),
+  /*text*/ Color::Hex(0x1D1D1F),
+  /*textSecondary*/ Color::Hex(0x3B424D),     // Symbolic's #6E6E73 is too light for 4.5:1 over every backdrop (test_material), so the original tones stay
   /*textTertiary*/ Color::Hex(0x3F4650),
   /*textDisabled*/ Color::Hex(0x1C1C1E, 0.28f),
   /*windowTint*/ Color::Hex(0xFFFFFF, 0.64f),
   /*windowTintBottom*/ Color::Hex(0xF4F6FA, 0.74f),
   /*windowBorder*/ Color::Hex(0xFFFFFF, 0.55f),
   /*divider*/ Color::Hex(0x000000, 0.10f),
-  /*controlFill*/ Color::Hex(0xFFFFFF, 0.48f),
-  /*controlFillHover*/ Color::Hex(0x000000, 0.11f),
+  /*controlFill*/ Color::Hex(0xFFFFFF, 0.62f),
+  /*controlFillHover*/ Color::Hex(0x000000, 0.06f),
   /*controlFillPressed*/ Color::Hex(0xFFFFFF, 0.94f),
   /*controlFillDisabled*/ Color::Hex(0x000000, 0.04f),
   /*fieldFill*/ Color::Hex(0xFFFFFF, 0.66f),
@@ -129,26 +129,26 @@ constexpr float margin          = 0.22f;   // window padding around R for shadow
 // ------------------------------------------------------------------------------------------------ dialog windows
 // Measured on edit-photo.png / add-background.png / audio-tools.png (2x retina, so dip = px/2):               [M/E]
 namespace dialog {
-constexpr float cornerRadius    = 26.f;    // [M] ~ 55px @2x
-constexpr float titleBarHeight  = 54.5f;   // [M] 109px @2x
+constexpr float cornerRadius    = 18.f;    // Symbolic: cards and pop-overs 16, windows a little more
+constexpr float titleBarHeight  = 52.f;    // Symbolic --titlebar-h
 constexpr float closeButton     = 32.f;    // [M] 64px @2x
 constexpr float closeInset      = 16.5f;   // [M] 33px @2x
-constexpr float titleFontSize   = 18.5f;   // [M] "Edit Photo" spans ~99 dip, bold
-constexpr float bodyFontSize    = 14.5f;   // [M] "Exposure" spans ~60 dip
-constexpr float smallFontSize   = 13.f;
+constexpr float titleFontSize   = 17.f;    // bold, centred
+constexpr float bodyFontSize    = 13.5f;   // Symbolic --text-base 13, a touch larger for glass
+constexpr float smallFontSize   = 12.f;    // Symbolic --text-label 11
 constexpr float contentInset    = 16.5f;   // [M] preview well starts 33px @2x from the window edge
 constexpr float sectionGap      = 14.f;
 constexpr float rowHeight       = 30.f;    // [M] slider rows: 59.5px @2x
 constexpr float footerHeight    = 58.f;    // [E]
 constexpr float shadowBlur      = 40.f;
 constexpr float shadowAlpha     = 0.30f;
-constexpr float wellRadius      = 24.f;    // [M] dark preview well
+constexpr float wellRadius      = 16.f;    // Symbolic --r-card
 constexpr float borderWidth     = 1.f;
 }
 
 namespace control {
 constexpr float buttonHeight    = 26.f;    // [E] reference "Apply" pill: ~49px @2x
-constexpr float buttonRadius    = 8.f;     // [E]
+constexpr float buttonRadius    = 9.f;     // Symbolic --r-control (buttons themselves are capsules)
 constexpr float buttonPadX      = 14.f;
 constexpr float segmentedHeight = 26.f;
 constexpr float sliderTrack     = 5.f;     // [M] ~ 10px @2x incl. antialiasing
@@ -158,7 +158,7 @@ constexpr float swatch          = 32.f;    // [M] background swatch ~ 64px @2x
 constexpr float swatchRadius    = 9.f;
 constexpr float checkbox        = 16.f;
 constexpr float inputHeight     = 26.f;
-constexpr float listRowRadius   = 14.f;    // [E] Join Videos rows
+constexpr float listRowRadius   = 12.f;    // Symbolic --r-group
 constexpr float listRowHeight   = 64.f;    // [E]
 }
 
@@ -177,12 +177,13 @@ namespace motion {
 constexpr float wheelAppear     = 0.200f;
 constexpr float wheelDisappear  = 0.130f;
 constexpr float wheelSwitch     = 0.180f;
-constexpr float hoverIn         = 0.090f;
+constexpr float hoverIn         = 0.110f;   // Symbolic --t-hover
 constexpr float hoverOut        = 0.140f;
 constexpr float dropConfirm     = 0.160f;
 constexpr float appearScaleFrom = 0.86f;
-constexpr float uiFast          = 0.120f;
-constexpr float uiNormal        = 0.200f;
+constexpr float uiFast          = 0.110f;
+constexpr float uiNormal        = 0.180f;   // --t-popover
+constexpr float uiSelect        = 0.220f;   // --t-selection (the sliding lens of a segmented control)
 }
 
 // ------------------------------------------------------------------------------------------------ glass

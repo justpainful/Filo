@@ -2,6 +2,7 @@
 #include "gfx/live_composition.h"
 #include "gfx/icons.h"
 #include "core/log.h"
+#include "core/crash.h"
 #include "core/util.h"
 #include <shellscalingapi.h>
 #include <dwmapi.h>
@@ -180,8 +181,17 @@ static bool ReadBack(ID3D11Texture2D* bb, std::vector<uint8_t>& out, int& w, int
   return true;
 }
 
+// Nothing with a destructor may live in this function: __try/__except does not unwind C++ objects.
+bool Surface::RenderGuarded(ID3D11RenderTargetView* rtv, ID3D11Texture2D* bb, int w, int h) {
+  __try { OnRender(rtv, bb, w, h); return true; }
+  __except (crash::ReportFaultFilter(GetExceptionInformation())) { return false; }
+}
+
 bool Surface::RenderNow(bool present, std::vector<uint8_t>* capture, int* cw, int* ch) {
   if (!hwnd_ || !swap_ || !rtv_) return false;
+  // A widget callback inside Draw() can pump messages (Explorer "show in folder", a folder picker, a message box). A frame request
+  // arriving then must not start a second render on the same Painter: its End() would leave the outer frame without a device context.
+  if (rendering_) { Invalidate(); return false; }
   auto& dev = Device::Get();
   ComPtr<ID3D11Texture2D> bb;
   swap_->GetBuffer(0, __uuidof(ID3D11Texture2D), bb.AsVoid());
@@ -191,8 +201,17 @@ bool Surface::RenderNow(bool present, std::vector<uint8_t>* capture, int* cw, in
   dev.ctx->OMSetRenderTargets(1, &rtv, nullptr);
   rendering_ = true;
   ++renderedFrames_;
-  OnRender(rtv_.Get(), bb.Get(), w_, h_);
+  const bool frameOk = RenderGuarded(rtv_.Get(), bb.Get(), w_, h_);
   rendering_ = false;
+  if (!frameOk) {
+    // A bug while drawing must cost one frame, not the whole app. After three faulty frames in a row the window is closed.
+    OnRenderFault();
+    dev.ctx->OMSetRenderTargets(0, nullptr, nullptr);
+    if (++renderFaults_ >= 3) { FILO_LOG(Error, "gfx", "a window keeps failing while drawing; closing it"); PostMessageW(hwnd_, WM_CLOSE, 0, 0); }
+    else Invalidate();
+    return false;
+  }
+  renderFaults_ = 0;
   dev.ctx->OMSetRenderTargets(0, nullptr, nullptr);
   if (capture) { int w = 0, h = 0; ReadBack(bb.Get(), *capture, w, h); if (cw) *cw = w; if (ch) *ch = h; }
   if (present) {

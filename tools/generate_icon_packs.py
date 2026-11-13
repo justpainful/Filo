@@ -1,4 +1,4 @@
-"""Author Filo's three original 24-unit vector plugins. No third-party artwork.
+"""Author Filo's four original 24-unit vector plugins. No third-party artwork.
 Run from the repository root. Manifests are the runtime assets; this is authoring only.
 """
 from pathlib import Path
@@ -289,13 +289,25 @@ circle|M12 2h5l5 5v10l-5 5h-5z
 star|M12 2v11l10-4-5 5 1 8-6-4z''')
 # Utility controls use purpose-built compact filled silhouettes (no extra surrounding container).
 solid_controls={'play','pause','stop','chevronup','chevrondown','chevronleft','chevronright','add','remove','grip','more'}
+# Icons added in 0.1.9 live in Classic and the Symbolic Style pack only; Pebble, Circuit and Facet inherit them from Classic.
+EXTRAS={'download','clipboard','sliders','palette','link','keyboard','bell','globe','power','eye','info','wheel'}
 for pack_id, title, description, round_caps in [
+ ('symbolic','Symbolic Style','Rounded line icons of one even weight, in the spirit of the Symbolic app. Original drawings, no third-party artwork.',True),
  ('pebble','Pebble','Soft silhouettes. Rounded forms with quiet two-tone depth.',True),
  ('circuit','Circuit','Signal and structure. Square terminals, precise routes and open geometry.',False),
  ('facet','Facet','Folded planes. Angular volumes and crisp operation marks.',False)]:
  icons={}
  for n,(old,filled) in classic.items():
-  c=circuit[n]
+  if n in EXTRAS and pack_id!='symbolic': continue
+  c=circuit.get(n)
+  if pack_id=='symbolic':
+   # Filo's own classic drawing as an even-weight rounded line.
+   if filled: icons[n]=[fill(old)]
+   else:
+    # a heavier even line (2.0, Classic is 1.7) and, for file-like glyphs only, a soft second tone behind it
+    duo={'document','folder','image','video','audio','archive','terminal','copy','float','layers','metadata','extract','settings','share','qr'}
+    icons[n]=([fill(body[n],.14)] if n in duo and n in body else [])+[line(old,2.0)]
+   continue
   if pack_id=='circuit':
    icons[n]=[line(c,1.55)] if n not in solid_controls else [fill(c)]
   elif pack_id=='pebble':
@@ -323,8 +335,8 @@ for pack_id, title, description, round_caps in [
     # Octagonal magnifying lenses, warning markers and count stamps.
     icons[n]=[fill(c,.22),line(c,1.9)]
  manifest=dict(schema=1,id=pack_id,name=title,description=description,round=round_caps,icons=icons)
- dest=ROOT/'assets/icon-packs'/f'{["pebble","circuit","facet"].index(pack_id)+1:02}-{pack_id}.json'
+ dest=ROOT/'assets/icon-packs'/f'{["symbolic","pebble","circuit","facet"].index(pack_id):02}-{pack_id}.json'
  dest.parent.mkdir(parents=True,exist_ok=True)
  dest.write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
  print(f'{dest.name}: {len(icons)} icons')
-assert set(classic)==set(circuit),set(classic)^set(circuit)
+assert set(classic)-EXTRAS==set(circuit),set(classic)^set(circuit)

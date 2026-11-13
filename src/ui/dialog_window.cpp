@@ -25,12 +25,20 @@ struct DialogWindow::DropTargetImpl : IDropTarget {
   STDMETHODIMP QueryInterface(REFIID r, void** p) override { if (r == IID_IUnknown || r == IID_IDropTarget) { *p = static_cast<IDropTarget*>(this); AddRef(); return S_OK; } *p = nullptr; return E_NOINTERFACE; }
   STDMETHODIMP_(ULONG) AddRef() override { return InterlockedIncrement(&ref); }
   STDMETHODIMP_(ULONG) Release() override { LONG r = InterlockedDecrement(&ref); if (!r) delete this; return r; }
-  STDMETHODIMP DragEnter(IDataObject*, DWORD, POINTL, DWORD* e) override { *e = (w && w->AcceptsFileDrop()) ? DROPEFFECT_COPY : DROPEFFECT_NONE; return S_OK; }
-  STDMETHODIMP DragOver(DWORD, POINTL, DWORD* e) override { *e = (w && w->AcceptsFileDrop()) ? DROPEFFECT_COPY : DROPEFFECT_NONE; return S_OK; }
-  STDMETHODIMP DragLeave() override { return S_OK; }
+  bool raw = false;                                 // the data object being dragged over us is one the window wants (a link)
+  STDMETHODIMP DragEnter(IDataObject* d, DWORD, POINTL, DWORD* e) override {
+    raw = w && w->AcceptsRawDrop(d);
+    if (w) w->OnRawDragState(true, raw);
+    *e = raw || (w && w->AcceptsFileDrop()) ? DROPEFFECT_COPY : DROPEFFECT_NONE;
+    return S_OK;
+  }
+  STDMETHODIMP DragOver(DWORD, POINTL, DWORD* e) override { *e = raw || (w && w->AcceptsFileDrop()) ? DROPEFFECT_COPY : DROPEFFECT_NONE; return S_OK; }
+  STDMETHODIMP DragLeave() override { if (w && raw) w->OnRawDragState(false, true); raw = false; return S_OK; }
   STDMETHODIMP Drop(IDataObject* d, DWORD, POINTL, DWORD* e) override {
     *e = DROPEFFECT_NONE;
-    if (!w || !w->AcceptsFileDrop()) return S_OK;
+    if (!w) return S_OK;
+    if (raw) { raw = false; *e = DROPEFFECT_COPY; w->OnRawDrop(d); w->Invalidate(); return S_OK; }
+    if (!w->AcceptsFileDrop()) return S_OK;
     auto files = shell::PathsFromDataObject(d);
     if (!files.empty()) { *e = DROPEFFECT_COPY; w->OnFilesDropped(files); w->Invalidate(); }
     return S_OK;
@@ -149,6 +157,14 @@ static void ApplyGlassyInk(Palette& p) {
   p.textTertiary = d ? Color::Hex(0xE5E5EA, .62f) : Color::Hex(0x505055, .82f);
 }
 
+static void ApplySymbolicInk(Palette& p) {
+  // Symbolic's semantic tokens for text on glass (src/design/tokens.css): text #1D1D1F / #F5F5F7, secondary #6E6E73 / #AEAEB2, tertiary #8E8E93
+  const bool d = Theme::Get().IsDark();
+  p.text = d ? Color::Hex(0xF5F5F7) : Color::Hex(0x1D1D1F);
+  p.textSecondary = d ? Color::Hex(0xBDBDC2) : Color::Hex(0x4D4D53);     // Symbolic #AEAEB2 / #6E6E73, adjusted to keep 4.5:1 on every backdrop
+  p.textTertiary = d ? Color::Hex(0xAAAAB0) : Color::Hex(0x56565C);
+}
+
 void DialogWindow::ApplyBlur() {
   if (!Valid()) return;
   SetBlurBehind(-1);
@@ -162,6 +178,7 @@ void DialogWindow::ApplyBlur() {
       back_ = {}; backBmp_.Reset();
       dyn_ = Theme::Get().Colors();
       if (Theme::Get().State().glassStyle == 3) ApplyGlassyInk(dyn_);
+      else if (Theme::Get().State().glassStyle == 4) ApplySymbolicInk(dyn_);
       else
       if (!Theme::Get().IsDark()) {
         dyn_.textSecondary = Color::Hex(0x25282F);
@@ -180,14 +197,19 @@ void DialogWindow::CaptureGlass() {
   const wchar_t* testImage = _wgetenv(L"FILO_TEST_BACKDROP");
   if (!Valid() || !testImage) return;
   const bool glassy = Theme::Get().State().glassStyle == 3;
-  const float sigma = (glassy ? 3.f : ds::glass::dialogBlurDip) * (Dpi() / 96.f);
+  const bool symbolic = Theme::Get().State().glassStyle == 4;
+  const float sigma = (glassy ? 3.f : symbolic ? 9.f : ds::glass::dialogBlurDip) * (Dpi() / 96.f);
   gfx::BackdropImage img;
   std::vector<uint8_t> tmp; int iw = 0, ih = 0;
   if (!gfx::LoadBgra(testImage, tmp, iw, ih) || !gfx::BackdropFromImage(testImage, RECT{0, 0, iw, ih}, sigma, img)) return;
   for (auto& px : img.blurred) {
     Color bg(((px >> 16) & 255) / 255.f, ((px >> 8) & 255) / 255.f, (px & 255) / 255.f);
     Color c = ds::FrostedBackdrop(bg, Theme::Get().IsDark(), Theme::Get().EffectiveGlass());
-    if (glassy) {
+    if (symbolic) {
+      // Symbolic menu / dialog material: the backdrop passes dimmed in the dark regime (x .38), untouched in the light one (the veil is the body fill)
+      const float k = Theme::Get().IsDark() ? .38f : 1.f;
+      c = Color(std::clamp(bg.r * k, 0.f, 1.f), std::clamp(bg.g * k, 0.f, 1.f), std::clamp(bg.b * k, 0.f, 1.f));
+    } else if (glassy) {
       // glassyui slab: saturate(1.8 dark / 1.6 light) then brightness(.38 dark / 1 light)
       const bool d = Theme::Get().IsDark();
       const float s = d ? 1.8f : 1.6f, k = d ? .38f : 1.f;
@@ -205,6 +227,7 @@ void DialogWindow::UpdateGlassPalette() {
   // Theme selection is explicit; desktop luminance must never flip text polarity.
   dyn_ = Theme::Get().Colors();
   if (Theme::Get().State().glassStyle == 3) ApplyGlassyInk(dyn_);
+  else if (Theme::Get().State().glassStyle == 4) ApplySymbolicInk(dyn_);
   dynValid_ = back_.validBlur();
 }
 
@@ -244,6 +267,7 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
   const float R = opts_.cornerRadius > 0 ? opts_.cornerRadius : dialog::cornerRadius;
   if (opts_.glassBody) {
     if (Theme::Get().State().glassStyle == 3 && (liveGlass || haveGlass)) painter_.GlassyShadow(body, R, Theme::Get().IsDark());
+    else if (Theme::Get().State().glassStyle == 4 && (liveGlass || haveGlass)) painter_.SymbolicShadow(body, R, Theme::Get().IsDark());
     else painter_.Shadow(body, R, dialog::shadowBlur, Color(0, 0, 0, dialog::shadowAlpha * 0.75f), 10);
   }
   if (liveGlass) {
@@ -252,6 +276,7 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
     if (Theme::Get().State().glassStyle == 0) painter_.LiquidBody(body,R,Theme::Get().IsDark(),glass);
     else if (Theme::Get().State().glassStyle == 2) painter_.AcrylicBody(body,R,Theme::Get().IsDark(),glass);
     else if (Theme::Get().State().glassStyle == 3) painter_.GlassyBody(body,R,Theme::Get().IsDark());
+    else if (Theme::Get().State().glassStyle == 4) painter_.SymbolicBody(body,R,Theme::Get().IsDark());
     else painter_.FillRoundRectGradient(body, R, Color(1, 1, 1, Theme::Get().IsDark() ? 0.01f : 0.04f), Color(1, 1, 1, 0.f));
   } else if (haveGlass) {
     if (!backBmp_) {
@@ -267,6 +292,7 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
     if (backBmp_) painter_.Bitmap(backBmp_.Get(), dst);
     // Subtle vertical sheen, clipped to the same body as the material.
     if (Theme::Get().State().glassStyle == 3) painter_.GlassyBody(body, R, Theme::Get().IsDark());
+    else if (Theme::Get().State().glassStyle == 4) painter_.SymbolicBody(body, R, Theme::Get().IsDark());
     else painter_.FillRoundRectGradient(body, R, Color(1, 1, 1, Theme::Get().IsDark() ? 0.01f : 0.07f), Color(1, 1, 1, 0.f));
     painter_.PopClip();
   } else if (opts_.glassBody) {
@@ -295,6 +321,8 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
     // border last, over everything
     if ((liveGlass || haveGlass) && Theme::Get().State().glassStyle == 3) {
       painter_.GlassyRim(body,R,Theme::Get().IsDark());
+    } else if ((liveGlass || haveGlass) && Theme::Get().State().glassStyle == 4) {
+      painter_.SymbolicRim(body,R,Theme::Get().IsDark());
     } else if (liveGlass && Theme::Get().State().glassStyle == 0) {
       painter_.LiquidRim(body,R,Theme::Get().IsDark(),Theme::Get().State().glassReflections*glass);
     } else {
@@ -310,6 +338,14 @@ void DialogWindow::OnRender(ID3D11RenderTargetView*, ID3D11Texture2D* bb, int w,
   in_.ClearTransient();
   OnTick(NowSeconds());
   if (more || NeedsContinuousFrames()) Invalidate();
+}
+
+void DialogWindow::OnRenderFault() {
+  // Close the half-finished frame so the next BeginDraw is legal; the Ui keeps its state and tries again.
+  painter_.End();
+  if (dc_) { dc_->EndDraw(); dc_->SetTarget(nullptr); }
+  in_.ClearTransient();
+  ui_.CancelPointer();
 }
 
 void DialogWindow::CancelPointerInput() {

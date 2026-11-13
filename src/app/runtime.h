@@ -6,6 +6,7 @@
 #include "shell/wheel_controller.h"
 #include "core/job.h"
 #include "ui/progress_hud.h"
+#include "ui/link_zone.h"
 #include <functional>
 #include <map>
 #include <memory>
@@ -18,11 +19,14 @@ constexpr UINT WM_FILO_THUMB = WM_APP + 0x02;
 constexpr UINT WM_FILO_JOB = WM_APP + 0x03;
 constexpr UINT WM_FILO_SETTINGS = WM_APP + 0x04;
 constexpr UINT WM_FILO_OPENWHEEL = WM_APP + 0x05;
+constexpr UINT WM_FILO_LINK = WM_APP + 0x07;       // lParam = heap std::wstring* : a link was dropped on the link zone
 
 struct StartupArgs {
   bool quit = false;                       // --quit : ask the running instance to exit
   bool openSettings = false;               // --settings
   bool background = false;                 // --background (autostart): never show anything
+  int crashRestarts = 0;                   // --crash-restart N : this start follows a crash (N-th in a row)
+  std::wstring downloadUrl;                // --download <url> : open the Download from Link window
   std::vector<std::wstring> wheelPaths;    // --wheel <paths...> (shell verbs / Send To)
   std::wstring wheelKind;                  // convert | tools | actions
 };
@@ -46,6 +50,7 @@ class Runtime : public shell::IDragServices {
   void ArmTimer(int id, unsigned ms) override;
   void KillTimer(int id) override;
   void SuppressMenuActivation(bool on) override;
+  void OpenLinkZone(POINT at) override;
 
  private:
   static LRESULT CALLBACK WndProcThunk(HWND, UINT, WPARAM, LPARAM);
@@ -62,6 +67,11 @@ class Runtime : public shell::IDragServices {
   void ForwardArgsToRunning(const StartupArgs& a);
   void HandleCopyData(const std::wstring& payload);
   void UpdateTrayStatus();
+
+  void DownloadFromClipboard();
+  void DownloadFromHotkey();                    // the link just copied, else the page open in the foreground browser
+  double lastClipboardChange_ = 0;
+  ui::LinkZone* zone_ = nullptr;                // the open link zone (self-owning window; cleared by its onGone)
 
   HWND hwnd_ = nullptr;
   UINT taskbarCreated_ = 0;

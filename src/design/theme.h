@@ -9,8 +9,8 @@ enum class ThemeMode { System, Light, Dark };
 
 struct ThemeState {
   ThemeMode mode = ThemeMode::System;
-  std::string iconPack = "classic"; // Stable plugin ID; existing users retain the original icons.
-  int glassStyle = 0;             // 0 Liquid Glass, 1 Soft Glass, 2 Windows Acrylic, 3 Glassy UI
+  std::string iconPack = "symbolic"; // Stable plugin ID (see Settings::iconPack).
+  int glassStyle = 4;             // 0 Liquid Glass, 1 Soft Glass, 2 Windows Acrylic, 3 Glassy UI, 4 Symbolic Glass
   float glassReflections = .65f;
   float glassRefraction = 1.f;
   float acrylicTransparency = .85f; // 0 opaque, 1 maximum colour transfer

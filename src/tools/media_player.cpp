@@ -171,6 +171,17 @@ void MediaPlayer::AudioLoop(HANDLE pipe, uint64_t gen) {
     if (got < (size_t)kAudioChunk) break;
   }
 out:
+  // The audio driver reads these buffers on its own thread. Let what is queued finish playing (or reset when stopping) before the
+  // vectors go out of scope; freeing them under a playing driver crashed inside wdmaud.drv at the end of every clip.
+  {
+    auto queued = [&] { for (auto& w : hdr) if ((w.dwFlags & WHDR_PREPARED) && !(w.dwFlags & WHDR_DONE)) return true; return false; };
+    while (queued() && gen_.load() == gen) Sleep(5);
+    std::lock_guard lk(audioMu_);
+    if (wave_) {
+      if (queued()) waveOutReset(wave_);
+      for (auto& w : hdr) if (w.dwFlags & WHDR_PREPARED) waveOutUnprepareHeader(wave_, &w, sizeof w);
+    }
+  }
   CloseHandle(pipe);
 }
 

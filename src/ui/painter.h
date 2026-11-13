@@ -64,6 +64,10 @@ class Painter {
   void GlassyShadow(const Rect& r, float radius, bool dark);
   void GlassyBody(const Rect& r, float radius, bool dark);
   void GlassyRim(const Rect& r, float radius, bool dark);
+  // Symbolic Glass (menu / dialog material of the owner's Symbolic app, glass.presets.v0.3.json): near + far shadow, light veil, axial rim light.
+  void SymbolicShadow(const Rect& r, float radius, bool dark);
+  void SymbolicBody(const Rect& r, float radius, bool dark);
+  void SymbolicRim(const Rect& r, float radius, bool dark);
   void FillCircle(float cx, float cy, float radius, const ds::Color& c);
   void StrokeCircle(float cx, float cy, float radius, const ds::Color& c, float width = 1.f);
   void Polyline(const std::vector<std::pair<float, float>>& pts, const ds::Color& c, float width);   // one stroked path, round caps/joins (no alpha build-up at joints)
@@ -72,6 +76,8 @@ class Painter {
   void Shadow(const Rect& r, float radius, float blur, const ds::Color& c, float dy = 0);  // soft drop shadow (D2D shadow effect)
   void PushClipRoundRect(const Rect& r, float radius);
   void PushClip(const Rect& r);
+  // Clip to `r` with the content fading out over `topFade` / `bottomFade` DIP at the edges (scroll areas). Popped with PopClip.
+  void PushFade(const Rect& r, float topFade, float bottomFade);
   void PopClip();   // pops the most recent clip of either kind
   void PushRotate(float cx, float cy, float degrees);   // rotates everything drawn until PopTransform (DIP coordinates)
   void PopTransform();

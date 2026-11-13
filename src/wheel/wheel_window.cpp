@@ -314,7 +314,7 @@ void WheelWindow::StepAnimation(double now) {
       float step = dt / std::max(dur, 0.001f);
       if (v < t) v = std::min(t, v + step); else if (v > t) v = std::max(t, v - step);
     };
-    approach(a.hover,a.hoverT,Theme::Get().State().glassStyle==0?(a.hoverT>a.hover?.16f:.18f):(a.hoverT>a.hover?ds::motion::hoverIn:ds::motion::hoverOut));
+    approach(a.hover,a.hoverT,(Theme::Get().State().glassStyle==0||Theme::Get().State().glassStyle==4)?(a.hoverT>a.hover?.16f:.18f):(a.hoverT>a.hover?ds::motion::hoverIn:ds::motion::hoverOut));
     approach(a.press, a.pressT, 0.06f);
     if (a.flash > 0.f) a.flash = anim ? std::max(0.f, a.flash - dt / ds::motion::dropConfirm) : 0.f;
   }
@@ -377,7 +377,7 @@ void WheelWindow::OnRender(ID3D11RenderTargetView* rtv, ID3D11Texture2D* bb, int
   cb.backRect[3] = (float)std::max(backdrop_.h, 1);
   cb.lightDir[0] = -0.55f; cb.lightDir[1] = -0.83f;                 // light from the upper left
   cb.lightDir[2] = ds::glass::saturationBoost; cb.lightDir[3] = 1.f;
-  cb.optics[0]=HasLiveBackdrop()?((Theme::Get().State().glassStyle==0||Theme::Get().State().glassStyle==3)?1.f:Theme::Get().State().glassStyle==2?2.f:0.f):0.f;
+  cb.optics[0]=HasLiveBackdrop()?((Theme::Get().State().glassStyle==0||Theme::Get().State().glassStyle==3||Theme::Get().State().glassStyle==4)?1.f:Theme::Get().State().glassStyle==2?2.f:0.f):0.f;
   cb.acrylic[0]=Theme::Get().State().acrylicTransparency;
   cb.optics[1]=Theme::Get().State().glassReflections;
   cb.optics[2]=Theme::Get().State().glassRefraction;cb.optics[3]=Scale();
@@ -514,31 +514,31 @@ void WheelWindow::DrawOverlay(ID2D1DeviceContext* dc, ID3D11Texture2D*, float ap
       auto b = brush(tc, alpha);
       if (it.icon.empty()) {
         float fs = std::min(R * ds::wheel::labelSize / 0.70f, box.y * 1.5f) * sc;
-        auto* f = gpu_->Format(fs, DWRITE_FONT_WEIGHT_BOLD);
+        auto* f = gpu_->Format(fs, DWRITE_FONT_WEIGHT_SEMI_BOLD);
         if (!f) continue;
-        std::wstring up = it.label; CharUpperBuffW(up.data(), (DWORD)up.size());
+        std::wstring up = it.label;      // sentence case as written (format names such as JPG stay upper case)
         ComPtr<IDWriteTextLayout> lay;
         Device::Get().dwrite->CreateTextLayout(up.c_str(), (UINT32)up.size(), f, 1000.f, 200.f, &lay);
         DWRITE_TEXT_METRICS tm{};
         float scaleFit = 1.f;
         if (lay) { lay->GetMetrics(&tm); if (tm.widthIncludingTrailingWhitespace > box.x) scaleFit = box.x / tm.widthIncludingTrailingWhitespace; }
-        if (scaleFit < 1.f) f = gpu_->Format(std::max(fs * scaleFit, R * 0.05f), DWRITE_FONT_WEIGHT_BOLD);
+        if (scaleFit < 1.f) f = gpu_->Format(std::max(fs * scaleFit, R * 0.05f), DWRITE_FONT_WEIGHT_SEMI_BOLD);
         const float dy = -0.016f * R;      // centre on cap-height rather than the line box
         D2D1_RECT_F rc{p.x - box.x, p.y - box.y + dy, p.x + box.x, p.y + box.y + dy};
         dc->DrawText(up.c_str(), (UINT32)up.size(), f, rc, b.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE);
       } else {
         const float iconPx = ds::wheel::iconSize * R * 1.45f * sc;
         const float gap = R * 0.055f;
-        gfx::IconCache::Get().Draw(dc, it.icon, p.x, p.y - gap - R * 0.012f, iconPx, b.Get(), 1.6f);
-        float fs = R * 0.0625f * sc;
-        auto* f = gpu_->Format(fs, DWRITE_FONT_WEIGHT_BOLD);
-        std::wstring up = it.label; CharUpperBuffW(up.data(), (DWORD)up.size());
+        gfx::IconCache::Get().Draw(dc, it.icon, p.x, p.y - gap - R * 0.012f, iconPx * gfx::IconCache::Get().OpticalScale(it.icon), b.Get(), 1.7f);
+        float fs = R * 0.071f * sc;
+        auto* f = gpu_->Format(fs, DWRITE_FONT_WEIGHT_SEMI_BOLD);
+        std::wstring up = it.label;
         ComPtr<IDWriteTextLayout> lay;
         Device::Get().dwrite->CreateTextLayout(up.c_str(), (UINT32)up.size(), f, 1000.f, 100.f, &lay);
         if (lay) {
           DWRITE_TEXT_RANGE all{0, (UINT32)up.size()};
           ComPtr<IDWriteTextLayout1> lay1; lay->QueryInterface(__uuidof(IDWriteTextLayout1), lay1.AsVoid());
-          if (lay1) lay1->SetCharacterSpacing(0.f, fs * 0.05f, 0.f, all);
+          if (lay1) lay1->SetCharacterSpacing(0.f, 0.f, 0.f, all);
           DWRITE_TEXT_METRICS tm{}; lay->GetMetrics(&tm);
           if (tm.widthIncludingTrailingWhitespace > box.x) { lay->SetFontSize(fs * box.x / tm.widthIncludingTrailingWhitespace, all); lay->GetMetrics(&tm); }
           lay->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);

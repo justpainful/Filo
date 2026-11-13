@@ -1,6 +1,7 @@
 # Third-party software and licences
 
-Filo is built from its own code plus the components below. Nothing is downloaded at run time, and no component sends data anywhere.
+Filo is built from its own code plus the components below. Filo never goes online on its own: the only network traffic is the one you start
+by dropping a link on the link zone (or pasting one into *Download from Link*), when Filo asks that site for the post and its files.
 Texts of the licences ship in the installer under `licenses\`. This file is the summary; the text files are authoritative.
 
 ## Bundled with the installer
@@ -8,6 +9,7 @@ Texts of the licences ship in the installer under `licenses\`. This file is the 
 | Component | Used for | How it is used | Licence |
 |---|---|---|---|
 | **FFmpeg** (Gyan "full" build 9.0) incl. x264, x265, libvpx, SVT-AV1, libaom, opus, vorbis, lame, xvid and others | video and audio conversion and editing, WebP/AVIF encoding, thumbnails | separate process (`tools\ffmpeg.exe`, `tools\ffprobe.exe`), **never linked** into Filo | **GPL v3** (the build is configured `--enable-gpl --enable-version3`); x264/x265/xvid are GPL, libvpx/libaom/SVT-AV1/opus/vorbis BSD-style, lame LGPL |
+| **yt-dlp** (standalone build) + Filo's yt-dlp plugin (`tools\yt-dlp-plugins`) | reading and downloading links (Download from Link) | separate process (`tools\yt-dlp.exe`), never linked | Unlicense (public domain); the standalone build bundles Python and libraries with their own licences (see `licenses\yt-dlp`) |
 | **PDFium** (build 158.0.8111) | PDF rendering, page operations, text extraction | `pdfium.dll` loaded by Filo | BSD-3-Clause / Apache-2.0 (bundled third-party licences in `licenses\pdfium`) |
 | **ExifTool** 13.59 | writing and reading metadata in images, media and documents | separate process (`tools\exiftool\exiftool.exe`) | Perl "Artistic or GPL"; the Windows executable embeds Strawberry Perl (its licence list is in `licenses\exiftool`) |
 
@@ -47,6 +49,15 @@ fixtures and cross-check results; nothing from it is distributed), 7-Zip and bsd
 The interface uses the system fonts (Segoe UI Variable Text/Display, falling back to Segoe UI; Cascadia Mono for timecodes).
 No fonts are bundled. All icons are original vector paths drawn for Filo; the reference screenshots in `reference\` are used only
 to measure layout and colour and are not shipped.
+
+## Symbolic Glass and Symbolic Style icons (defaults since 0.1.8)
+
+- **Symbolic Glass**: the numeric values (blur, veil, dark transmission, rim, outline, shadows, text colours) come from the owner's own **Symbolic** app
+  (`glass.presets.v0.3.json`, `tokens.css`). Owner's work; no code is compiled into Filo. Details: docs/SYMBOLIC-GLASS.md.
+- **Symbolic Style icon pack**: original drawings made for Filo; no third-party artwork.
+- **SF Symbols / SF Pro are not included.** They are Apple proprietary and licensed only for Apple platforms. The owner asked for them to be bundled and offered to take the licence
+  responsibility; they were left out anyway, because that responsibility cannot override Apple's terms for a redistributed Windows installer. Nothing derived from Apple's fonts or symbol outlines is in
+  the installer or the source tree. If they are ever added as a per-user pack on one PC, that is outside this installer.
 
 ## Glassy UI (design values used by the optional "Glassy UI" material)
 

@@ -29,6 +29,8 @@ struct IDragServices {
   virtual void ArmTimer(int id, unsigned ms) = 0;
   virtual void KillTimer(int id) = 0;
   virtual void SuppressMenuActivation(bool on) = 0;
+  // The "download this link" drop zone (Right Ctrl while dragging a link out of a browser). Closed through CloseWheel too.
+  virtual void OpenLinkZone(POINT at) {}
 };
 
 class DragSession {
@@ -41,6 +43,8 @@ class DragSession {
     conv_ = convert; tools_ = tools; actions_ = actions; keepOpen_ = keepOpenOnRelease;
   }
   void SetEnabled(bool e) { enabled_ = e; if (!e) Reset(false); }
+  // Right Ctrl on a drag that did not start in File Explorer / the Desktop (a link dragged from a browser) opens the link zone.
+  void SetLinkDownloads(bool on) { linkDownloads_ = on; }
 
   void OnLeftDown(POINT pt);
   void OnDragMoved();
@@ -62,7 +66,9 @@ class DragSession {
 
   IDragServices* svc_;
   Shortcut conv_{ModShift, 0}, tools_{ModAlt, 0}, actions_{ModCtrl, 0};
-  bool keepOpen_ = true, enabled_ = true;
+  bool keepOpen_ = true, enabled_ = true, linkDownloads_ = true;
+  bool rightCtrl_ = false;         // Right Ctrl physically down (mods_ never carries the ModRightCtrl bit)
+  bool zoneOpen_ = false;          // the open "wheel" is the link zone, not a wheel
   State state_ = State::Idle;
   POINT down_{};
   uint32_t mods_ = 0;

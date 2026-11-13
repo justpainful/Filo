@@ -27,12 +27,15 @@ static Shortcut ShortcutFromJson(const Json& j, Shortcut def) {
 
 Json Settings::ToJson() const {
   Json j = Json::MakeObject();
-  j["version"] = 1;
+  j["version"] = 2;
   j["startWithWindows"] = startWithWindows; j["startMinimized"] = startMinimized; j["backgroundIntegration"] = backgroundIntegration;
   j["notifications"] = notifications; j["outputLocation"] = (int)outputLocation; j["fixedOutputFolder"] = Narrow(fixedOutputFolder);
   j["filenameSuffix"] = Narrow(filenameSuffix); j["overwritePolicy"] = (int)overwritePolicy; j["preserveOriginals"] = preserveOriginals;
   j["convertWheel"] = ShortcutToJson(convertWheel); j["toolsWheel"] = ShortcutToJson(toolsWheel); j["actionsWheel"] = ShortcutToJson(actionsWheel);
-  j["invokeKeyboard"] = ShortcutToJson(invokeKeyboard); j["dragThresholdPx"] = dragThresholdPx; j["keepWheelOpenOnKeyRelease"] = keepWheelOpenOnKeyRelease;
+  j["invokeKeyboard"] = ShortcutToJson(invokeKeyboard); j["downloadHotkey"] = ShortcutToJson(downloadHotkey); j["dragThresholdPx"] = dragThresholdPx; j["keepWheelOpenOnKeyRelease"] = keepWheelOpenOnKeyRelease;
+  j["linkDownloads"] = linkDownloads; j["downloadFolder"] = Narrow(downloadFolder);
+  j["downloadFolderThreshold"] = downloadFolderThreshold; j["downloadQuality"] = downloadQuality;
+  j["downloadSaveText"] = downloadSaveText; j["downloadCookies"] = downloadCookies; j["downloadCookiesFile"] = Narrow(downloadCookiesFile); j["downloadParallel"] = downloadParallel;
   j["iconPack"] = iconPack;
   j["acrylicTransparency"]=acrylicTransparency; j["acrylicBlur"]=acrylicBlur;
   j["glassStyle"] = glassStyle; j["glassReflections"] = glassReflections; j["glassRefraction"] = glassRefraction;
@@ -57,14 +60,22 @@ Settings Settings::FromJson(const Json& j) {
   s.filenameSuffix = S("filenameSuffix", s.filenameSuffix); s.overwritePolicy = (OverwritePolicy)std::clamp(I("overwritePolicy", 0), 0, 1);
   s.convertWheel = ShortcutFromJson(j.Get("convertWheel"), s.convertWheel); s.toolsWheel = ShortcutFromJson(j.Get("toolsWheel"), s.toolsWheel);
   s.actionsWheel = ShortcutFromJson(j.Get("actionsWheel"), s.actionsWheel); s.invokeKeyboard = ShortcutFromJson(j.Get("invokeKeyboard"), s.invokeKeyboard);
+  s.downloadHotkey = ShortcutFromJson(j.Get("downloadHotkey"), s.downloadHotkey);
   s.dragThresholdPx = I("dragThresholdPx", 0); s.keepWheelOpenOnKeyRelease = B("keepWheelOpenOnKeyRelease", true);
-  s.iconPack = j.Get("iconPack").StringOr("classic");
-  if (s.iconPack.empty() || s.iconPack.size()>48) s.iconPack="classic";
+  s.linkDownloads = B("linkDownloads", s.linkDownloads); s.downloadFolder = S("downloadFolder", s.downloadFolder);
+  s.downloadFolderThreshold = std::clamp(I("downloadFolderThreshold", 4), 0, 100); s.downloadQuality = std::clamp(I("downloadQuality", 0), 0, 1);
+  s.downloadSaveText = B("downloadSaveText", s.downloadSaveText); s.downloadCookies = std::clamp(I("downloadCookies", 0), 0, 4);
+  s.downloadCookiesFile = S("downloadCookiesFile", s.downloadCookiesFile); s.downloadParallel = std::clamp(I("downloadParallel", 3), 1, 4);
+  s.iconPack = j.Get("iconPack").StringOr("symbolic");
+  if (s.iconPack.empty() || s.iconPack.size()>48) s.iconPack="symbolic";
+  if (I("version", 1) < 2) s.iconPack = "symbolic";        // files written before 0.1.8: the new default applies once, later choices are kept
   s.acrylicTransparency=F("acrylicTransparency",.85f);
   s.acrylicBlur=F("acrylicBlur",30.f);
   s.acrylicTransparency=std::isfinite(s.acrylicTransparency)?std::clamp(s.acrylicTransparency,0.f,1.f):.85f;
   s.acrylicBlur=std::isfinite(s.acrylicBlur)?std::clamp(s.acrylicBlur,0.f,48.f):30.f;
-  s.glassStyle = std::clamp(I("glassStyle", 0), 0, 3);
+  s.glassStyle = std::clamp(I("glassStyle", 4), 0, 4);
+  // Settings files written before 0.1.8 (version 1) did not know Symbolic Glass: it becomes the default once; later choices are kept.
+  if (I("version", 1) < 2) s.glassStyle = 4;
   s.glassReflections = std::clamp(F("glassReflections", .65f), 0.f, 1.f);
   s.glassRefraction = std::clamp(F("glassRefraction", 1.f), 0.f, 1.f);
   s.theme = std::clamp(I("theme", 1), 0, 2); s.glassIntensity = std::clamp(F("glassIntensity", 1.f), 0.f, 1.f);

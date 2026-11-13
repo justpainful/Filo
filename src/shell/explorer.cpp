@@ -132,4 +132,38 @@ std::vector<fs::path> PathsFromDataObject(IDataObject* d) {
   return out;
 }
 
+static bool ReadText(IDataObject* d, UINT cf, bool wide, std::wstring& out) {
+  FORMATETC f{(CLIPFORMAT)cf, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+  if (FAILED(d->QueryGetData(&f))) return false;
+  STGMEDIUM m{};
+  if (FAILED(d->GetData(&f, &m))) return false;
+  bool ok = false;
+  if (m.tymed == TYMED_HGLOBAL && m.hGlobal) {
+    const SIZE_T bytes = GlobalSize(m.hGlobal);
+    if (const void* p = GlobalLock(m.hGlobal)) {
+      if (wide) { size_t n = bytes / sizeof(wchar_t); const wchar_t* w = (const wchar_t*)p; size_t len = 0; while (len < n && w[len]) ++len; out.assign(w, len); }
+      else { const char* a = (const char*)p; size_t len = 0; while (len < bytes && a[len]) ++len; out = Widen(std::string_view(a, len)); }
+      GlobalUnlock(m.hGlobal);
+      ok = !out.empty();
+    }
+  }
+  ReleaseStgMedium(&m);
+  return ok;
+}
+
+std::vector<std::wstring> LinkTextsFromDataObject(IDataObject* d) {
+  std::vector<std::wstring> out;
+  if (!d) return out;
+  std::wstring t;
+  static const UINT cfUrlW = RegisterClipboardFormatW(L"UniformResourceLocatorW");
+  static const UINT cfUrlA = RegisterClipboardFormatW(L"UniformResourceLocator");
+  static const UINT cfMoz = RegisterClipboardFormatW(L"text/x-moz-url");
+  if (ReadText(d, cfUrlW, true, t)) out.push_back(t);
+  if (ReadText(d, cfUrlA, false, t)) out.push_back(t);
+  if (ReadText(d, cfMoz, true, t)) out.push_back(t.substr(0, t.find(L'\n')));        // "url\ntitle"
+  if (ReadText(d, CF_UNICODETEXT, true, t)) out.push_back(t);
+  if (ReadText(d, CF_TEXT, false, t)) out.push_back(t);
+  return out;
+}
+
 } // namespace filo::shell

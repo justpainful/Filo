@@ -4,6 +4,7 @@
 #include "core/settings.h"
 #include <fstream>
 #include <iterator>
+#include <set>
 using namespace filo;
 
 static Json SamplePack() {
@@ -11,8 +12,9 @@ static Json SamplePack() {
   j["icons"]=Json::MakeObject();auto layers=Json::MakeArray();auto l=Json::MakeObject();
   l["path"]="M4 4h16v16H4z";l["fill"]=true;layers.Push(l);j["icons"]["image"]=layers;return j;
 }
-TEST(icon_plugins_ship_three_complete_packs_and_preserve_classic) {
-  const auto names=gfx::IconCache::Names();CHECK_EQ(names.size(),68u);
+TEST(icon_plugins_ship_four_complete_packs_and_preserve_classic) {
+  const auto names=gfx::IconCache::Names();CHECK_EQ(names.size(),80u);
+  const std::set<std::string> extras{"download","clipboard","sliders","palette","link","keyboard","bell","globe","power","eye","info","wheel"};
   for(const auto& file:fs::directory_iterator(ExeDir()/L"icon-packs")) {
     if(file.path().extension()!=L".json")continue;
     std::ifstream stream(file.path());std::string data((std::istreambuf_iterator<char>(stream)),{});
@@ -24,10 +26,11 @@ TEST(icon_plugins_ship_three_complete_packs_and_preserve_classic) {
         CHECK(false);}
     }
   }
-  for(const char* id:{"pebble","circuit","facet"}) {
+  for(const char* id:{"symbolic","pebble","circuit","facet"}) {
     const auto& pack=gfx::IconPacks::Get().Resolve(id);
-    CHECK_EQ(pack.id,id);CHECK_EQ(pack.icons.size(),names.size());
-    if(pack.id==id)for(const auto& n:names)CHECK(pack.icons.contains(n));
+    const bool full=std::string(id)=="symbolic";
+    CHECK_EQ(pack.id,id);CHECK_EQ(pack.icons.size(),full?names.size():names.size()-extras.size());
+    if(pack.id==id)for(const auto& n:names)CHECK(pack.icons.contains(n)||(!full&&extras.contains(n)));
   }
   CHECK_EQ(gfx::IconPacks::Get().Resolve("classic").icons.size(),0u);
   CHECK_EQ(gfx::IconPacks::Get().Resolve("removed-pack").id,"classic");
@@ -46,9 +49,9 @@ TEST(icon_plugin_manifest_rejects_bad_paths_and_accepts_partial_inheritance) {
   l["opacity"]=1;l["stroke"]=-1;a=Json::MakeArray();a.Push(l);bad["icons"]["image"]=a;CHECK(!gfx::ParseIconPack(bad,p));
 }
 TEST(icon_plugin_selection_roundtrips_without_changing_glass_or_processing) {
-  CHECK_EQ(Settings::FromJson(Json::MakeObject()).iconPack,"classic");
+  CHECK_EQ(Settings::FromJson(Json::MakeObject()).iconPack,"symbolic");
   Settings s;s.glassStyle=1;s.reduceMotion=true;s.imageQuality=73;
-  for(const char* id:{"classic","pebble","circuit","facet","custom-pack"}) {
+  for(const char* id:{"classic","symbolic","pebble","circuit","facet","custom-pack"}) {
     s.iconPack=id;const auto copy=Settings::FromJson(s.ToJson());CHECK_EQ(copy.iconPack,id);
     CHECK_EQ(copy.glassStyle,1);CHECK(copy.reduceMotion);CHECK_EQ(copy.imageQuality,73);
   }

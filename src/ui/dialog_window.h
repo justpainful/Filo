@@ -8,6 +8,8 @@
 #include <functional>
 #include <memory>
 
+struct IDataObject;
+
 namespace filo::ui {
 
 struct DialogOptions {
@@ -54,11 +56,17 @@ class DialogWindow : public gfx::Surface {
   virtual bool OnEnter() { return false; }             // Enter pressed while no text field has focus; return true if handled
   virtual bool AcceptsFileDrop() const { return false; }
   virtual void OnFilesDropped(const std::vector<std::filesystem::path>& files) {}
+  // Raw OLE drops (a link dragged out of a browser). AcceptsRawDrop sees the data object when the drag enters the window;
+  // OnRawDragState reports hover (over = entered an acceptable or unacceptable drag, `acceptable` = the data is wanted).
+  virtual bool AcceptsRawDrop(IDataObject*) { return false; }
+  virtual void OnRawDragState(bool over, bool acceptable = false) {}
+  virtual void OnRawDrop(IDataObject*) {}
   virtual void OnOpened() {}
   virtual void OnTick(double now) {}                   // called every rendered frame (video/audio preview timers)
   virtual bool NeedsContinuousFrames() const { return false; }
 
   void OnRender(ID3D11RenderTargetView* rtv, ID3D11Texture2D* bb, int w, int h) override;
+  void OnRenderFault() override;
   LRESULT OnMessage(UINT msg, WPARAM wp, LPARAM lp) override;
   bool WantsContinuousFrames() const override { return NeedsContinuousFrames(); }
   void OnDeviceReset(bool rebuilt) override;

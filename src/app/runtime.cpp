@@ -1,5 +1,7 @@
 #include "app/runtime.h"
 #include "core/log.h"
+#include "core/crash.h"
+#include "ui/menu_icons.h"
 #include "core/settings.h"
 #include "core/output.h"
 #include "design/theme.h"
@@ -7,6 +9,9 @@
 #include "registry/selection.h"
 #include "shell/actions.h"
 #include "shell/explorer.h"
+#include "shell/browser_url.h"
+#include "engines/web/web.h"
+#include "tools/tools.h"
 #include <shellapi.h>
 #include <shlobj.h>
 #include <windowsx.h>
@@ -19,10 +24,10 @@ using wheel::WheelKind;
 static constexpr wchar_t kWndClass[] = L"Filo.Runtime";
 static constexpr UINT WM_FILO_DISPATCH = WM_APP + 0x06;
 static constexpr UINT_PTR kTimerWheelPaths = 100, kTimerTrayStatus = 101;
-static constexpr int kHotkeyId = 1;
+static constexpr int kHotkeyId = 1, kDownloadHotkeyId = 2;
 static constexpr int IDI_APP_ICON = 101;
 
-enum MenuId { ID_TOGGLE = 1, ID_SETTINGS, ID_LOGS, ID_QUIT, ID_CONVERT_WHEEL, ID_TOOLS_WHEEL, ID_ACTIONS_WHEEL };
+enum MenuId { ID_TOGGLE = 1, ID_SETTINGS, ID_LOGS, ID_QUIT, ID_CONVERT_WHEEL, ID_TOOLS_WHEEL, ID_ACTIONS_WHEEL, ID_DOWNLOAD };
 
 Runtime::Runtime() = default;
 Runtime::~Runtime() = default;
@@ -34,7 +39,51 @@ std::vector<std::filesystem::path> Runtime::PrefetchSelection(POINT pt) { return
 POINT Runtime::CursorPos() { POINT p{}; GetCursorPos(&p); return p; }
 void Runtime::OpenWheel(WheelKind k, POINT at, const std::vector<std::filesystem::path>& files) { wheel_->Open(k, at, files, false); }
 void Runtime::SwitchWheel(WheelKind k) { wheel_->Switch(k); }
-void Runtime::CloseWheel(bool animated) { wheel_->Close(animated); }
+void Runtime::CloseWheel(bool animated) {
+  if (zone_) zone_->Dismiss();
+  if (wheel_->IsOpen()) wheel_->Close(animated);
+}
+
+void Runtime::OpenLinkZone(POINT at) {
+  if (zone_) zone_->Dismiss();
+  zone_ = ui::LinkZone::Create(at, true);
+  if (!zone_) return;
+  zone_->classify = [](const std::vector<std::wstring>& texts, std::wstring* url, std::wstring* platform) {
+    for (const std::wstring& t : texts) {
+      const std::wstring u = web::ExtractUrl(t);
+      if (u.empty()) continue;
+      *url = u;
+      const web::Platform p = web::DetectPlatform(u);
+      *platform = p.known ? p.name : std::wstring();
+      return true;
+    }
+    return false;
+  };
+  // Runs inside the OLE Drop() callback: only post; the window is opened (and the zone closed) from the message loop.
+  zone_->onDrop = [this](const std::wstring& url) { PostMessageW(hwnd_, WM_FILO_LINK, 0, (LPARAM)new std::wstring(url)); };
+  zone_->onGone = [this] { zone_ = nullptr; };
+}
+
+static std::wstring ClipboardUrl(HWND owner) {
+  std::wstring text;
+  if (OpenClipboard(owner)) {
+    if (HANDLE h = GetClipboardData(CF_UNICODETEXT)) { if (const wchar_t* w = (const wchar_t*)GlobalLock(h)) { text = w; GlobalUnlock(h); } }
+    CloseClipboard();
+  }
+  return web::ExtractUrl(text);
+}
+
+void Runtime::DownloadFromClipboard() { tools::OpenDownloadDialog(ClipboardUrl(hwnd_)); }
+
+void Runtime::DownloadFromHotkey() {
+  // A link copied in the last 30 seconds is what the user means; otherwise the page open in the browser in front; otherwise whatever link the clipboard holds.
+  const std::wstring clip = ClipboardUrl(hwnd_);
+  std::wstring url;
+  if (!clip.empty() && lastClipboardChange_ > 0 && NowSeconds() - lastClipboardChange_ < 30) url = clip;
+  if (url.empty()) { HWND fg = GetForegroundWindow(); url = web::ExtractUrl(shell::BrowserPageUrl(fg ? GetAncestor(fg, GA_ROOT) : nullptr)); }
+  if (url.empty()) url = clip;
+  tools::OpenDownloadDialog(url);
+}
 void Runtime::ArmTimer(int id, unsigned ms) { ::SetTimer(hwnd_, (UINT_PTR)id, ms, nullptr); }
 void Runtime::KillTimer(int id) { ::KillTimer(hwnd_, (UINT_PTR)id); }
 void Runtime::SuppressMenuActivation(bool on) { shell::InputHooks::Get().SetSuppressMenuActivation(on); }
@@ -77,6 +126,7 @@ void Runtime::ApplySettings() {
   }, 0);
   session_->SetShortcuts(s.convertWheel, s.toolsWheel, s.actionsWheel, s.keepWheelOpenOnKeyRelease);
   session_->SetEnabled(s.backgroundIntegration && integrationEnabled_);
+  session_->SetLinkDownloads(s.linkDownloads);
   shell::InputHooks::Get().SetDragThreshold(s.dragThresholdPx);
   JobManager::Get().SetMaxConcurrent(s.concurrentJobs);
   RegisterHotkey();
@@ -91,18 +141,22 @@ void Runtime::ApplySettings() {
   }
 }
 
-void Runtime::RegisterHotkey() {
-  UnregisterHotKey(hwnd_, kHotkeyId);
-  Settings s = SettingsStore::Get().Snapshot();
-  const Shortcut& sc = s.invokeKeyboard;
+static void RegisterOne(HWND hwnd, int id, const Shortcut& sc) {
+  UnregisterHotKey(hwnd, id);
   if (sc.vk == 0) return;
   UINT mods = MOD_NOREPEAT;
   if (sc.mods & ModAlt) mods |= MOD_ALT;
   if (sc.mods & ModCtrl) mods |= MOD_CONTROL;
   if (sc.mods & ModShift) mods |= MOD_SHIFT;
   if (sc.mods & ModWin) mods |= MOD_WIN;
-  if (!RegisterHotKey(hwnd_, kHotkeyId, mods, sc.vk))
+  if (!RegisterHotKey(hwnd, id, mods, sc.vk))
     FILO_LOG(Warn, "runtime", "could not register the keyboard shortcut %ls (in use by another app)", sc.ToString().c_str());
+}
+
+void Runtime::RegisterHotkey() {
+  Settings s = SettingsStore::Get().Snapshot();
+  RegisterOne(hwnd_, kHotkeyId, s.invokeKeyboard);
+  RegisterOne(hwnd_, kDownloadHotkeyId, s.linkDownloads ? s.downloadHotkey : Shortcut{});
 }
 
 // ------------------------------------------------------------------------------------------------ dispatch
@@ -248,6 +302,10 @@ void Runtime::HandleCopyData(const std::wstring& payload) {
   // payload: "<kind>\n<path>\n<path>..."
   auto parts = Split(payload, L'\n');
   if (parts.empty()) return;
+  if (parts[0] == L"download") {             // "download\n<url>" from a second Filo.exe --download
+    PostMessageW(hwnd_, WM_FILO_LINK, 0, (LPARAM)new std::wstring(parts.size() > 1 ? parts[1] : std::wstring()));
+    return;
+  }
   pendingWheelKind_ = parts[0];
   for (size_t i = 1; i < parts.size(); ++i) if (!parts[i].empty()) pendingWheelPaths_.emplace_back(parts[i]);
   ::SetTimer(hwnd_, kTimerWheelPaths, 180, nullptr);       // Explorer starts one process per selected file: collect them
@@ -258,6 +316,7 @@ void Runtime::ForwardArgsToRunning(const StartupArgs& a) {
   if (!other) return;
   std::wstring payload = a.wheelKind.empty() ? L"convert" : a.wheelKind;
   for (auto& p : a.wheelPaths) payload += L"\n" + p;
+  if (!a.downloadUrl.empty()) payload = L"download\n" + a.downloadUrl;
   COPYDATASTRUCT cds{};
   cds.dwData = 0xF110;
   cds.cbData = (DWORD)((payload.size() + 1) * sizeof(wchar_t));
@@ -268,21 +327,35 @@ void Runtime::ForwardArgsToRunning(const StartupArgs& a) {
 
 void Runtime::ShowTrayMenu(POINT pt) {
   HMENU m = CreatePopupMenu();
-  AppendMenuW(m, MF_STRING | (integrationEnabled_ ? MF_CHECKED : 0), ID_TOGGLE, L"Enable drag wheels");
+  AppendMenuW(m, MF_STRING, ID_TOGGLE, L"Enable drag wheels");      // no MF_CHECKED: with an icon Windows would draw a box around it instead of a check mark
   AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(m, MF_STRING, ID_DOWNLOAD, L"Download from link...");
   AppendMenuW(m, MF_STRING, ID_SETTINGS, L"Settings...");
   AppendMenuW(m, MF_STRING, ID_LOGS, L"Open logs folder");
   AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(m, MF_STRING, ID_QUIT, L"Quit Filo");
+  // Symbolic menus: every item has an icon (the best-fitting glyph of the current icon pack, drawn in the system menu ink)
+  std::vector<HBITMAP> iconBitmaps;
+  const int iconPx = std::max(16, GetSystemMetrics(SM_CXMENUCHECK));
+  struct MenuIcon { UINT id; const char* icon; };
+  const COLORREF onInk = RGB(10, 132, 255);
+  for (const MenuIcon& mi : {MenuIcon{ID_TOGGLE, integrationEnabled_ ? "check" : "circle"}, MenuIcon{ID_DOWNLOAD, "download"}, MenuIcon{ID_SETTINGS, "settings"}, MenuIcon{ID_LOGS, "folder"}, MenuIcon{ID_QUIT, "close"}}) {
+    if (HBITMAP b = ui::MenuIconBitmap(mi.icon, iconPx, mi.id == ID_TOGGLE && integrationEnabled_ ? onInk : CLR_INVALID)) {
+      MENUITEMINFOW info{sizeof info}; info.fMask = MIIM_BITMAP; info.hbmpItem = b;
+      if (SetMenuItemInfoW(m, mi.id, FALSE, &info)) iconBitmaps.push_back(b); else DeleteObject(b);
+    }
+  }
   SetForegroundWindow(hwnd_);
   int cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd_, nullptr);
   DestroyMenu(m);
+  for (HBITMAP b : iconBitmaps) DeleteObject(b);
   switch (cmd) {
     case ID_TOGGLE:
       integrationEnabled_ = !integrationEnabled_;
       session_->SetEnabled(integrationEnabled_ && SettingsStore::Get().Snapshot().backgroundIntegration);
       UpdateTrayStatus();
       break;
+    case ID_DOWNLOAD: DownloadFromClipboard(); break;
     case ID_SETTINGS: PostMessageW(hwnd_, WM_FILO_SETTINGS, 0, 0); break;
     case ID_LOGS: ShellExecuteW(nullptr, L"open", LogDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL); break;
     case ID_QUIT: PostMessageW(hwnd_, WM_CLOSE, 0, 0); break;
@@ -314,6 +387,11 @@ LRESULT Runtime::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       std::unique_ptr<DispatchPayload> p(reinterpret_cast<DispatchPayload*>(l));
       Dispatch(p->id, p->sel, p->at);
       return 0; }
+    case WM_FILO_LINK: {
+      std::unique_ptr<std::wstring> url(reinterpret_cast<std::wstring*>(l));
+      if (session_) session_->OnDropHandled();       // closes the link zone now that the drop is over
+      tools::OpenDownloadDialog(url ? web::ExtractUrl(*url) : std::wstring());
+      return 0; }
     case WM_FILO_SETTINGS:
       // The settings window lives in the UI module; until it is linked in, fall back to the settings file.
       if (onOpenSettings) onOpenSettings(); else ShellExecuteW(nullptr, L"open", SettingsStore::Get().FilePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
@@ -328,7 +406,11 @@ LRESULT Runtime::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         session_->OnTimer((int)w);
       }
       return 0;
-    case WM_HOTKEY: if (w == (WPARAM)kHotkeyId) InvokeFromKeyboard(); return 0;
+    case WM_HOTKEY:
+      if (w == (WPARAM)kHotkeyId) InvokeFromKeyboard();
+      else if (w == (WPARAM)kDownloadHotkeyId) DownloadFromHotkey();
+      return 0;
+    case WM_CLIPBOARDUPDATE: lastClipboardChange_ = NowSeconds(); return 0;
     case WM_COPYDATA: {
       auto* cds = reinterpret_cast<COPYDATASTRUCT*>(l);
       if (cds && cds->dwData == 0xF110 && cds->lpData) HandleCopyData(std::wstring((const wchar_t*)cds->lpData, cds->cbData / sizeof(wchar_t) - 1));
@@ -351,16 +433,18 @@ int Runtime::Run(const StartupArgs& args) {
   HANDLE mutex = CreateMutexW(nullptr, TRUE, L"Local\\Filo.SingleInstance");
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
     if (args.quit) { HWND o = FindWindowW(kWndClass, nullptr); if (o) PostMessageW(o, WM_CLOSE, 0, 0); }
-    else if (!args.wheelPaths.empty()) ForwardArgsToRunning(args);
+    else if (!args.wheelPaths.empty() || !args.downloadUrl.empty()) ForwardArgsToRunning(args);
     else if (args.openSettings) { HWND o = FindWindowW(kWndClass, nullptr); if (o) PostMessageW(o, WM_FILO_SETTINGS, 0, 0); }
     if (mutex) CloseHandle(mutex);
     return 0;
   }
   if (args.quit) { if (mutex) CloseHandle(mutex); return 0; }
 
+  crash::EnableRestartOnCrash(args.crashRestarts);          // the tray app starts itself again if it ever crashes
   SettingsStore::Get().Load();
   RegisterAllEngines();
   if (!CreateMessageWindow()) { FILO_LOG(Error, "runtime", "message window failed"); return 1; }
+  AddClipboardFormatListener(hwnd_);
   shell::RegisterShellActions(hwnd_);
   if (registerTools) registerTools(hwnd_);
 
@@ -386,6 +470,7 @@ int Runtime::Run(const StartupArgs& args) {
 
   if (!args.wheelPaths.empty()) { pendingWheelPaths_ = [&] { std::vector<fs::path> v; for (auto& p : args.wheelPaths) v.emplace_back(p); return v; }(); pendingWheelKind_ = args.wheelKind; ::SetTimer(hwnd_, kTimerWheelPaths, 50, nullptr); }
   if (args.openSettings) PostMessageW(hwnd_, WM_FILO_SETTINGS, 0, 0);
+  if (!args.downloadUrl.empty()) PostMessageW(hwnd_, WM_FILO_LINK, 0, (LPARAM)new std::wstring(args.downloadUrl));
 
   FILO_LOG(Info, "runtime", "Filo %s running (hooks=%d)", FILO_VERSION, shell::InputHooks::Get().Running() ? 1 : 0);
   MSG msg;
@@ -398,6 +483,8 @@ int Runtime::Run(const StartupArgs& args) {
   JobManager::Get().RemoveListener(jobListener_);
   JobManager::Get().Shutdown();
   UnregisterHotKey(hwnd_, kHotkeyId);
+  UnregisterHotKey(hwnd_, kDownloadHotkeyId);
+  RemoveClipboardFormatListener(hwnd_);
   tray_.Destroy();
   wheel_->Shutdown();
   wheel_.reset();

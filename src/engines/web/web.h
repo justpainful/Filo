@@ -74,6 +74,10 @@ std::wstring FormatUtcTime(int64_t unixSeconds);
 fs::path YtDlpPath();                // tools\yt-dlp.exe next to Filo.exe, else PATH. Empty when missing.
 fs::path PluginDir();                // the Filo plugin folder (tools\yt-dlp-plugins, or the source tree in development builds)
 bool Available();
+// gallery-dl (GPL-2.0, a separate program, never linked) reads what yt-dlp cannot: Instagram profiles and photo posts.
+// tools\gallery-dl.exe next to Filo.exe, else PATH; the FILO_GALLERY_DL environment variable overrides both (development).
+fs::path GalleryDlPath();
+bool GalleryDlAvailable();
 
 // Asks yt-dlp what the link contains. Blocking (seconds); run it on a worker thread. Honours `cancel`.
 LinkInfo Probe(const std::wstring& url, const std::atomic<bool>* cancel = nullptr);
@@ -138,7 +142,8 @@ struct AccountEntry {
   int64_t timestamp = 0;
   int64_t likes = -1, reposts = -1, comments = -1, views = -1;
   bool repost = false;
-  bool hasMedia = false;                 // `media` is complete (X): the post is saved without asking the site again
+  bool hasMedia = false;                 // `media` is complete (X, Instagram): the post is saved without asking the site again
+  bool expires = false;                  // the media addresses are signed and run out (Instagram): a failed download asks the site again
   std::vector<Item> media;
 };
 // One line of `yt-dlp -j --flat-playlist`. Returns false when the line holds nothing usable.

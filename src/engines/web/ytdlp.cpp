@@ -166,7 +166,7 @@ RunResult RunDownload(const LinkInfo& info, int playlistIndex, const std::vector
 }  // namespace
 
 // ------------------------------------------------------------------------------------------------ probe
-LinkInfo Probe(const std::wstring& url, const std::atomic<bool>* cancel) {
+static LinkInfo ProbeYtDlp(const std::wstring& url, const std::atomic<bool>* cancel) {
   LinkInfo bad;
   bad.sourceUrl = url;
   bad.platform = DetectPlatform(url);
@@ -205,6 +205,16 @@ LinkInfo Probe(const std::wstring& url, const std::atomic<bool>* cancel) {
     if (!json) { bad.error = L"The downloader returned something Filo could not read."; return bad; }
   }
   return ParseProbe(*json, url);
+}
+
+LinkInfo Probe(const std::wstring& url, const std::atomic<bool>* cancel) {
+  LinkInfo li = ProbeYtDlp(url, cancel);
+  // Instagram: yt-dlp only knows video posts and wants a sign-in for most of them; gallery-dl also reads photos and carousels.
+  if (!li.ok && li.platform.id == "instagram" && GalleryDlAvailable() && !(cancel && cancel->load())) {
+    LinkInfo g = internal::ProbeGallery(url, cancel);
+    if (g.ok || !g.error.empty()) return g;
+  }
+  return li;
 }
 
 // ------------------------------------------------------------------------------------------------ download
@@ -391,6 +401,7 @@ namespace internal {
 std::vector<std::wstring> BaseArgs() { return CommonArgs(); }
 std::wstring ErrorText(const std::string& stderrText, const std::wstring& startError) { return FriendlyError(stderrText, startError); }
 void PrepareEnvironment() { web::PrepareEnvironment(); }
+CookieChoice CurrentCookies() { std::lock_guard lk(g_cookieMu); return {g_cookieSource, g_cookieFile}; }
 }  // namespace internal
 
 }  // namespace filo::web

@@ -10,6 +10,7 @@ Texts of the licences ship in the installer under `licenses\`. This file is the 
 |---|---|---|---|
 | **FFmpeg** (Gyan "full" build 9.0) incl. x264, x265, libvpx, SVT-AV1, libaom, opus, vorbis, lame, xvid and others | video and audio conversion and editing, WebP/AVIF encoding, thumbnails | separate process (`tools\ffmpeg.exe`, `tools\ffprobe.exe`), **never linked** into Filo | **GPL v3** (the build is configured `--enable-gpl --enable-version3`); x264/x265/xvid are GPL, libvpx/libaom/SVT-AV1/opus/vorbis BSD-style, lame LGPL |
 | **yt-dlp** (standalone build) + Filo's yt-dlp plugin (`tools\yt-dlp-plugins`) | reading and downloading links (Download from Link) | separate process (`tools\yt-dlp.exe`), never linked | Unlicense (public domain); the standalone build bundles Python and libraries with their own licences (see `licenses\yt-dlp`) |
+| **gallery-dl** (standalone build) | reading Instagram profiles, posts, reels and stories (Download from Link, accounts) | separate process (`tools\gallery-dl.exe`), never linked | **GPL v2** (`licenses\gallery-dl\LICENSE.txt`); the standalone build bundles Python and libraries with their own licences |
 | **PDFium** (build 158.0.8111) | PDF rendering, page operations, text extraction | `pdfium.dll` loaded by Filo | BSD-3-Clause / Apache-2.0 (bundled third-party licences in `licenses\pdfium`) |
 | **ExifTool** 13.59 | writing and reading metadata in images, media and documents | separate process (`tools\exiftool\exiftool.exe`) | Perl "Artistic or GPL"; the Windows executable embeds Strawberry Perl (its licence list is in `licenses\exiftool`) |
 
@@ -20,6 +21,14 @@ a derivative work, but **anyone who redistributes the installer must also provid
 source offer**. The licence text is shipped in `licenses\ffmpeg\LICENSE`. The corresponding source for the exact build is available from
 the build's publisher (https://www.gyan.dev/ffmpeg/builds/ - source links on that page) and from https://ffmpeg.org/download.html.
 If you ship the installer yourself, keep a copy of that source (or a written offer valid for three years) with it.
+
+### gallery-dl GPL obligations
+
+`tools\gallery-dl.exe` is the unmodified standalone build of gallery-dl (https://codeberg.org/mikf/gallery-dl, GPL v2). Filo only starts it as a separate program
+and reads what it prints, so the same reasoning as for FFmpeg applies: Filo's own source is not a derivative work, but a redistributed installer must carry the
+licence text (`licenses\gallery-dl\LICENSE.txt`) and the source offer. The corresponding source of the exact version is the tag of the same name in that repository (the project moved from GitHub to Codeberg)
+(https://codeberg.org/mikf/gallery-dl/releases). To ship an installer without it, build with `scripts\package.ps1 -NoGalleryDl`; Filo then reads Instagram with yt-dlp only,
+which needs a sign-in for almost everything and cannot read photo posts.
 
 ## Linked into Filo (static)
 

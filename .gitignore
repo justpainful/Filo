@@ -15,6 +15,7 @@
 /third_party/_dl/
 /third_party/pdfium/
 /third_party/exiftool/
+/third_party/gallery-dl/
 
 # compiled artefacts
 *.obj

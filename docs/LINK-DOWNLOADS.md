@@ -69,8 +69,26 @@ filo-cli account https://x.com/NASA                       # every post, with its
 * Running it again only fetches new posts: saved ids are remembered in `.filo-saved.txt` inside the account folder (`--redo` ignores it). Several posts download at once (default 3).
 * **X** has no public timeline for visitors, so Filo's yt-dlp plugin (`filo_twitter_user.py`) reads it from the public FixTweet API (`api.fxtwitter.com`). Only the account handle is sent there,
   no sign-in is needed, and reposts are left out unless `--reposts`. The service sometimes answers slowly or says 404 for a moment; Filo asks again.
-* Instagram and other sites that hide accounts from visitors need a sign-in: `--cookies firefox` (or chrome / edge, or a `cookies.txt` file).
+* **Instagram** (0.4.0, experimental) is read by gallery-dl, a second downloader shipped in `tools\gallery-dl.exe`: profiles (`instagram.com/name`), single posts, reels and stories,
+  including photos and carousels, which yt-dlp cannot read. See the next section.
+* Other sites that hide accounts from visitors need a sign-in too: `--cookies firefox` (or chrome / edge, or a `cookies.txt` file).
 * Single posts: the window has *Also save the post text*; `filo-cli download <url> --text` does the same. A tweet with no media is offered as *Text only*.
+
+## Instagram (0.4.0, experimental)
+
+Instagram shows almost nothing to visitors who are not signed in, with any downloader. So an Instagram profile needs a **sign-in**: choose *Firefox* under *Sign-in* (the browser
+must have Instagram open and signed in) or give a `cookies.txt` file. Chrome and Edge usually cannot be read on Windows (their saved cookies are locked to the browser).
+Filo only reads the cookies through gallery-dl on your computer; nothing is sent anywhere but Instagram.
+
+* The profile's posts are listed with gallery-dl (`gallery-dl -N <format> https://www.instagram.com/<name>/posts/`): it prints one JSON line per file, Filo groups them into posts.
+  The files themselves are then fetched by Filo from the addresses gallery-dl reports, so naming (`Filo_Instagram_<name>_<shortcode>_01.jpg`), the post text file, resume
+  (`.filo-saved.txt`) and parallel downloads behave exactly like for TikTok or X.
+* Those addresses are signed and run out after a while: if a file cannot be fetched, Filo asks gallery-dl for the post again once.
+* gallery-dl waits several seconds between requests to Instagram on purpose, so a big profile takes minutes to list (about 12 posts per request). Do not shorten this: it keeps the account safe from limits.
+* A single Instagram post, reel or story link falls back to gallery-dl when yt-dlp cannot read it.
+* Development builds find `gallery-dl.exe` on `PATH`; the `FILO_GALLERY_DL` environment variable names the file explicitly.
+* Not tested against a real account by the author at release time: the parsing, listing, naming and download steps are tested with recorded gallery-dl output (`web_*gallery*` tests).
+* licence: gallery-dl is GPL-2.0; see LICENSES.md. `scripts\package.ps1 -NoGalleryDl` builds an installer without it.
 
 ## Headless checks
 

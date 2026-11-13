@@ -4,9 +4,11 @@
 param(
   [string]$Config = "Release",
   [string]$Suffix = "_rel",
-  [ValidatePattern("^[0-9]+[.][0-9]+[.][0-9]+$")][string]$Version = "0.3.2",
+  [ValidatePattern("^[0-9]+[.][0-9]+[.][0-9]+$")][string]$Version = "0.4.0",
   [string]$FfmpegDir = "",
-  [string]$YtDlpExe = ""                      # the real yt-dlp.exe (the standalone build, not a shim); found automatically when it is in scoop or on PATH
+  [string]$YtDlpExe = "",                     # the real yt-dlp.exe (the standalone build, not a shim); found automatically when it is in scoop or on PATH
+  [string]$GalleryDlExe = "",                 # the standalone gallery-dl.exe (GPL-2.0, reads Instagram); found in third_party\gallery-dl, scoop or on PATH
+  [switch]$NoGalleryDl                        # build an installer without it (Instagram then goes through yt-dlp only)
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -27,6 +29,15 @@ if (-not $YtDlpExe) {
   $YtDlpExe = $cands | Where-Object { (Test-Path $_) -and ((Get-Item $_).Length -gt 5MB) } | Select-Object -First 1   # shims are tiny launchers: skip them
 }
 if (-not $YtDlpExe -or -not (Test-Path $YtDlpExe)) { throw "The standalone yt-dlp.exe was not found (link downloads need it). Pass -YtDlpExe." }
+if (-not $NoGalleryDl) {
+  if (-not $GalleryDlExe) {
+    $cands = @((Join-Path $root "third_party\gallery-dl\gallery-dl.exe"), "$env:USERPROFILE\scoop\apps\gallery-dl\current\gallery-dl.exe")
+    $cmd = Get-Command gallery-dl.exe -ErrorAction SilentlyContinue
+    if ($cmd) { $cands += $cmd.Source }
+    $GalleryDlExe = $cands | Where-Object { (Test-Path $_) -and ((Get-Item $_).Length -gt 5MB) } | Select-Object -First 1
+  }
+  if (-not $GalleryDlExe -or -not (Test-Path $GalleryDlExe)) { throw "The standalone gallery-dl.exe was not found (Instagram needs it). Pass -GalleryDlExe, or -NoGalleryDl to leave it out." }
+}
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 not found." }
 
@@ -49,6 +60,13 @@ Copy-Item $YtDlpExe "$stage\tools\yt-dlp.exe"
 Copy-Item (Join-Path $root "assets\yt-dlp-plugins") "$stage\tools\yt-dlp-plugins" -Recurse
 New-Item -ItemType Directory -Force "$stage\licenses\yt-dlp" | Out-Null
 Copy-Item (Join-Path $root "assets\licenses\yt-dlp-UNLICENSE.txt") "$stage\licenses\yt-dlp\LICENSE.txt"
+# Instagram: gallery-dl, a separate GPL-2.0 program (see docs\LICENSES.md for the obligations that come with shipping it)
+if (-not $NoGalleryDl) {
+  Copy-Item $GalleryDlExe "$stage\tools\gallery-dl.exe"
+  New-Item -ItemType Directory -Force "$stage\licenses\gallery-dl" | Out-Null
+  Copy-Item (Join-Path $root "assets\licenses\gallery-dl-GPL-2.0.txt") "$stage\licenses\gallery-dl\LICENSE.txt"
+  Set-Content -Path "$stage\licenses\gallery-dl\SOURCE.txt" -Encoding utf8 -Value "gallery-dl is free software under the GNU GPL v2 (LICENSE.txt).`r`nThe source code of the bundled version is at https://codeberg.org/mikf/gallery-dl (the release tag of the same version)."
+}
 
 $et = Get-ChildItem (Join-Path $root "third_party\exiftool") -Directory | Select-Object -First 1
 Copy-Item (Join-Path $et.FullName "exiftool(-k).exe") "$stage\tools\exiftool\exiftool.exe"

@@ -29,6 +29,10 @@ AccountInfo ListAccount(const std::wstring& url, const ListOptions& opt, const s
   ai.handle = ai.ref.handle;
   ai.name = ai.handle;
   if (!ai.ref.is) { ai.error = L"This is not the address of an account or channel."; return ai; }
+  if (internal::UsesGalleryDl(ai.platform) && GalleryDlAvailable()) {    // Instagram: gallery-dl reads the profile, yt-dlp cannot
+    internal::ListGallery(ai, opt, cancel, onEntry);
+    return ai;
+  }
   if (!Available()) { ai.error = L"The downloader (yt-dlp) is missing from this Filo installation."; return ai; }
   internal::PrepareEnvironment();
 
@@ -200,9 +204,12 @@ JobResult DownloadAccount(const AccountDownloadRequest& req, JobContext& ctx) {
       if (k >= total) return;
       const AccountEntry& entry = acc.entries[todo[k]];
       std::wstring error;
-      bool ok = false, nothingToSave = false;
+      bool ok = false, nothingToSave = false, refreshed = false;
       for (int attempt = 0; attempt < 3 && !ctx.Cancelled(); ++attempt) {
-        LinkInfo li = entry.hasMedia ? LinkInfoFromEntry(entry, acc.platform) : Probe(Widen(entry.url), ctx.CancelFlag());
+        // Instagram addresses are signed and run out: after a failed fetch, ask the site for fresh ones once
+        LinkInfo li = entry.hasMedia && !refreshed ? LinkInfoFromEntry(entry, acc.platform)
+                      : entry.expires              ? internal::ProbeGallery(Widen(entry.url), ctx.CancelFlag())
+                                                   : Probe(Widen(entry.url), ctx.CancelFlag());
         if (ctx.Cancelled()) break;
         if (!li.ok) { error = li.error; if (Transient(error) && attempt < 2 && Pause(attempt ? 25 : 8, ctx.CancelFlag())) continue; break; }
         if (li.uploader.empty()) li.uploader = acc.handle;
@@ -232,6 +239,7 @@ JobResult DownloadAccount(const AccountDownloadRequest& req, JobContext& ctx) {
         if (r.ok) { ok = true; break; }
         error = r.error;
         if (error == L"Cancelled.") break;
+        if (entry.expires && !refreshed && error.rfind(L"Could not download", 0) == 0) { refreshed = true; continue; }
         if (Transient(error) && attempt < 2 && Pause(attempt ? 25 : 8, ctx.CancelFlag())) continue;
         break;
       }

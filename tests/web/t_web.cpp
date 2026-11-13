@@ -1,5 +1,6 @@
 #include "test.h"
 #include "engines/web/web.h"
+#include "engines/web/web_internal.h"
 
 using namespace filo;
 using namespace filo::web;
@@ -316,4 +317,76 @@ TEST(web_recognises_playlists) {
   CHECK(s.is); CHECK(s.isPlaylist); CHECK(s.listUrls[0] == "https://soundcloud.com/artist/sets/my-album");
   CHECK(!ClassifyAccount(L"https://soundcloud.com/artist/tracks").isPlaylist);
   CHECK(ClassifyAccount(L"https://www.dailymotion.com/playlist/x7abc").isPlaylist);
+}
+
+
+// ---- Instagram through gallery-dl ---------------------------------------------------------------------------------------------------
+static const char* kGdl1 = R"G(["Cabc123","3412345678901234567",1,3,"2026-11-12T20:16:05","nasa","NASA مرحبا",5566,"First line\nSecond \"line\"",1080,1350,"https://scontent.cdninstagram.com/v/a.jpg?stp=1&oe=ABC","jpg","post"])G";
+static const char* kGdl2 = R"G(["Cabc123","3412345678901234567",2,3,"2026-11-12T20:16:05","nasa","NASA",5566,"First line\nSecond \"line\"",1080,1920,"https://scontent.cdninstagram.com/v/b.mp4?x=1","mp4","post"])G";
+static const char* kGdl3 = R"G(["Cabc123","3412345678901234567",3,3,"None","nasa","NASA",null,"",null,null,"https://scontent.cdninstagram.com/v/c.webp","webp","post"])G";
+
+TEST(web_reads_gallery_dl_lines) {
+  internal::GalleryFile f;
+  CHECK(internal::ParseGalleryLine(kGdl1, f));
+  CHECK(f.shortcode == "Cabc123");
+  CHECK_EQ(f.num, 1); CHECK_EQ(f.count, 3);
+  CHECK(f.user == "nasa");
+  CHECK(f.fullName == L"NASA \x0645\x0631\x062D\x0628\x0627");
+  CHECK(f.text == L"First line\nSecond \"line\"");
+  CHECK_EQ(f.likes, (int64_t)5566);
+  CHECK_EQ(f.width, 1080); CHECK_EQ(f.height, 1350);
+  CHECK(f.ext == "jpg");
+  CHECK_EQ(f.timestamp, (int64_t)1794514565);                         // 2026-11-12 20:16:05 UTC
+  CHECK(internal::ParseGalleryLine(kGdl3, f));
+  CHECK_EQ(f.timestamp, (int64_t)0);                                  // "None" is an unknown date
+  CHECK_EQ(f.likes, (int64_t)-1);
+  CHECK(!internal::ParseGalleryLine("", f));
+  CHECK(!internal::ParseGalleryLine("[instagram][info] Requesting https://www.instagram.com/nasa/", f));
+  CHECK(!internal::ParseGalleryLine(R"G([null,null,1,1,"None",null,null,null,null,1,1,"https://x/y.jpg","jpg",null])G", f));   // no post id
+}
+
+TEST(web_gallery_files_become_one_post) {
+  AccountEntry e;
+  internal::GalleryFile f;
+  for (const char* line : {kGdl1, kGdl2, kGdl3}) { CHECK(internal::ParseGalleryLine(line, f)); internal::AddGalleryFile(e, f); }
+  CHECK(e.id == "Cabc123");
+  CHECK(e.url == "https://www.instagram.com/p/Cabc123/");
+  CHECK(e.hasMedia); CHECK(e.expires);
+  CHECK(e.authorHandle == "nasa");
+  CHECK(e.authorName == L"NASA \x0645\x0631\x062D\x0628\x0627");     // the name of the first file
+  CHECK(e.title == L"First line");
+  CHECK_EQ(e.media.size(), (size_t)3);
+  CHECK(e.media[0].kind == ItemKind::Image);
+  CHECK(e.media[1].kind == ItemKind::Video);
+  CHECK(e.media[1].direct);                                           // videos are fetched from their address too
+  CHECK(e.media[2].kind == ItemKind::Image);                          // .webp is a picture
+  CHECK_EQ(e.media[2].index, 3);
+  CHECK(e.media[1].url == "https://scontent.cdninstagram.com/v/b.mp4?x=1");
+
+  LinkInfo li = LinkInfoFromEntry(e, DetectPlatform(L"https://www.instagram.com/nasa/"));
+  CHECK(li.ok); CHECK(!li.textOnly);
+  CHECK_EQ(li.items.size(), (size_t)3);
+  CHECK(li.platform.id == "instagram");
+  CHECK(li.description.find(L"Second") != std::wstring::npos);
+
+  AccountEntry reel;
+  const char* r = R"G(["Reel99","1",1,1,"2026-01-02T03:04:05","u","U",3,"",720,1280,"https://v/r.mp4","mp4","reel"])G";
+  CHECK(internal::ParseGalleryLine(r, f));
+  internal::AddGalleryFile(reel, f);
+  CHECK(reel.url == "https://www.instagram.com/reel/Reel99/");
+}
+
+TEST(web_gallery_errors_are_sentences) {
+  bool login = false;
+  std::wstring t = internal::GalleryErrorText("[instagram][error] NotFoundError: Requested user could not be found\r\n", L"", login);
+  CHECK(login);                                                       // without a sign-in this means "sign in", not "no such user"
+  CHECK(t.find(L"Sign in to Instagram") != std::wstring::npos);
+  login = false;
+  t = internal::GalleryErrorText("[instagram][error] HttpError: '429 Too Many Requests' for 'https://www.instagram.com/api/v1/x'\n", L"", login);
+  CHECK(!login);
+  CHECK(t.find(L"limiting") != std::wstring::npos);
+  CHECK(internal::GalleryErrorText("", L"", login).empty());
+  CHECK(internal::GalleryErrorText("", L"access denied", login).find(L"access denied") != std::wstring::npos);
+  CHECK(internal::UsesGalleryDl(DetectPlatform(L"https://www.instagram.com/nasa/")));
+  CHECK(!internal::UsesGalleryDl(DetectPlatform(L"https://www.tiktok.com/@nasa")));
 }

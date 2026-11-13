@@ -375,7 +375,7 @@ AccountRef ClassifyAccount(const std::wstring& url) {
   } else if (plat.id == "youtube" && plain({L"youtube.com", L"www.youtube.com", L"m.youtube.com", L"music.youtube.com"})) {
     if (!g.empty() && g[0] == L"playlist") {
       const std::wstring list = QueryValue(u.query, L"list");
-      if (CleanName(list, 80)) return done(L"playlist_" + SafePart(list, 14), {"https://www.youtube.com/playlist?list=" + Narrow(list)});
+      if (CleanName(list, 80)) { AccountRef p = done(L"playlist_" + SafePart(list, 14), {"https://www.youtube.com/playlist?list=" + Narrow(list)}); p.isPlaylist = true; return p; }
       return r;
     }
     std::string base; std::wstring handle, tab;
@@ -407,12 +407,18 @@ AccountRef ClassifyAccount(const std::wstring& url) {
     if (g.size() == 2 && !OneOf(g[1], {L"videos", L"clips", L"schedule", L"about", L"home"})) return r;
     return done(g[0], {"https://www.twitch.tv/" + Narrow(g[0]) + "/videos"});
   } else if (plat.id == "vimeo" && plain({L"vimeo.com", L"www.vimeo.com"})) {
+    if (g.size() == 2 && OneOf(g[0], {L"album", L"showcase"}) && IsNumber(g[1])) {
+      AccountRef p = done(L"album_" + g[1], {"https://vimeo.com/" + Narrow(ToLower(g[0])) + "/" + Narrow(g[1])}); p.isPlaylist = true; return p;
+    }
     if (g.empty() || g.size() > 2 || !CleanName(g[0], 40) || IsNumber(g[0])) return r;
     if (OneOf(g[0], {L"channels", L"groups", L"categories", L"ondemand", L"watch", L"search", L"stock", L"upload", L"features", L"about", L"help", L"log_in", L"join",
                      L"jobs", L"terms", L"privacy", L"couchmode", L"staffpicks", L"blog", L"solutions", L"pricing", L"enterprise", L"live", L"create", L"site", L"album", L"user"})) return r;
     if (g.size() == 2 && !OneOf(g[1], {L"videos"})) return r;
     return done(g[0], {"https://vimeo.com/" + Narrow(g[0]) + "/videos"});
   } else if (plat.id == "soundcloud" && plain({L"soundcloud.com", L"www.soundcloud.com", L"m.soundcloud.com"})) {
+    if (g.size() == 3 && OneOf(g[1], {L"sets"}) && CleanName(g[0], 60) && CleanName(g[2], 100)) {
+      AccountRef p = done(g[2], {"https://soundcloud.com/" + Narrow(g[0]) + "/sets/" + Narrow(g[2])}); p.isPlaylist = true; return p;
+    }
     if (g.empty() || g.size() > 2 || !CleanName(g[0], 60)) return r;
     if (OneOf(g[0], {L"discover", L"stream", L"search", L"upload", L"you", L"pages", L"terms-of-use", L"jobs", L"charts", L"popular", L"feed", L"settings", L"notifications",
                      L"messages", L"mobile", L"imprint", L"community-guidelines", L"creators", L"people"})) return r;
@@ -426,6 +432,7 @@ AccountRef ClassifyAccount(const std::wstring& url) {
     if (!g.empty() && IsNumber(g[0])) return done(g[0], {"https://space.bilibili.com/" + Narrow(g[0]) + "/video"});
   } else if (plat.id == "dailymotion" && plain({L"dailymotion.com", L"www.dailymotion.com"})) {
     if (g.size() == 2 && OneOf(g[0], {L"user"}) && CleanName(g[1], 60)) return done(g[1], {"https://www.dailymotion.com/user/" + Narrow(g[1])});
+    if (g.size() == 2 && OneOf(g[0], {L"playlist"}) && CleanName(g[1], 60)) { AccountRef p = done(L"playlist_" + g[1], {"https://www.dailymotion.com/playlist/" + Narrow(g[1])}); p.isPlaylist = true; return p; }
   } else if (plat.id == "rumble" && plain({L"rumble.com", L"www.rumble.com"})) {
     if (g.size() == 2 && OneOf(g[0], {L"c", L"user"}) && CleanName(g[1], 60)) return done(g[1], {"https://rumble.com/" + Narrow(ToLower(g[0])) + "/" + Narrow(g[1])});
   }

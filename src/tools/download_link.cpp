@@ -292,7 +292,7 @@ class DownloadDialog : public ToolDialog {
     if (stage_ == Stage::Ready && mode_ == Mode::Account) {
       const int posts = SelectedPosts();
       fi.actionEnabled = posts > 0 && (accVideos_ || accPictures_ || saveText_);
-      fi.status = fi.actionEnabled ? Count((size_t)posts) + (posts == 1 ? L" post" : L" posts") + L"  \x00B7  into " + web::AccountFolderName(acc_.platform, acc_.handle)
+      fi.status = fi.actionEnabled ? Count((size_t)posts) + (acc_.ref.isPlaylist ? (posts == 1 ? L" video" : L" videos") : (posts == 1 ? L" post" : L" posts")) + L"  \x00B7  into " + web::AccountFolderName(acc_.platform, acc_.handle)
                                    : std::wstring(L"Choose what to save.");
       if (DrawFooter(ui, content, fi).action) StartDownload();
       return;
@@ -544,9 +544,12 @@ class DownloadDialog : public ToolDialog {
 
   // ------------------------------------------------------------------------------------------------ accounts
   int SelectedPosts() const {
-    const int total = (int)acc_.entries.size();
-    const int lim = limitIdx_ >= 0 && limitIdx_ < (int)limitVals_.size() ? limitVals_[limitIdx_] : 0;
-    return lim > 0 ? std::min(lim, total) : total;
+    int n = 0;
+    for (char c : accPicked_) n += c ? 1 : 0;
+    return n;
+  }
+  void PickFirst(int count) {                              // count 0 = everything
+    for (size_t i = 0; i < accPicked_.size(); ++i) accPicked_[i] = count <= 0 || (int)i < count;
   }
 
   void ApplyCookies() {
@@ -590,8 +593,8 @@ class DownloadDialog : public ToolDialog {
       TextStyle t1; t1.size = 16; t1.weight = 700; t1.ellipsis = true; t1.align = rtl ? Align::End : Align::Start;
       TextStyle t2; t2.size = 13; t2.ellipsis = true; t2.align = rtl ? Align::End : Align::Start;
       p.Text({tx, y + 4, tw, 24}, acc_.name.empty() ? acc_.handle : acc_.name, pal.text, t1);
-      p.Text({tx, y + 32, tw, 18}, acc_.platform.name + (acc_.handle.empty() ? L"" : L"  \x00B7  @" + acc_.handle), pal.textSecondary, t2);
-      std::wstring sum = Count(acc_.entries.size()) + (acc_.entries.size() == 1 ? L" post" : L" posts");
+      p.Text({tx, y + 32, tw, 18}, acc_.platform.name + (acc_.ref.isPlaylist ? std::wstring(L"  \x00B7  Playlist") : acc_.handle.empty() ? std::wstring() : L"  \x00B7  @" + acc_.handle), pal.textSecondary, t2);
+      std::wstring sum = Count(acc_.entries.size()) + (acc_.ref.isPlaylist ? (acc_.entries.size() == 1 ? L" video" : L" videos") : (acc_.entries.size() == 1 ? L" post" : L" posts"));
       if (acc_.capped) sum += L"  \x00B7  the first " + Count(acc_.entries.size()) + L" are listed";
       else if (acc_.interrupted) sum += L"  \x00B7  listing stopped early";
       if (acc_.platform.id == "x") sum += L"  \x00B7  reposts not included";
@@ -599,6 +602,17 @@ class DownloadDialog : public ToolDialog {
       y += 84;
     }
     const float optH = AccountOptionsHeight();
+    {
+      TextStyle ts; ts.size = 13; ts.weight = 600; ts.align = rtl ? Align::End : Align::Start;
+      Rect bar{body.x + pad, y, body.w - 2 * pad, 28};
+      const int total = (int)acc_.entries.size(), sel = SelectedPosts();
+      p.Text(ui.Mirror({bar.x, bar.y, bar.w - 200, 28}, bar), Count((size_t)sel) + L" of " + Count((size_t)total) + (acc_.ref.isPlaylist ? L" videos selected" : L" posts selected"), pal.textSecondary, ts);
+      ui.PushId(0xD17);
+      if (ui.Button(ui.Mirror({bar.right() - 190, bar.y + 1, 90, 26}, bar), L"All", ButtonStyle::Quiet, sel < total)) PickFirst(0);
+      if (ui.Button(ui.Mirror({bar.right() - 96, bar.y + 1, 90, 26}, bar), L"None", ButtonStyle::Quiet, sel > 0)) std::fill(accPicked_.begin(), accPicked_.end(), 0);
+      ui.PopId();
+      y += 32;
+    }
     Rect vp{body.x + pad, y, body.w - 2 * pad, std::max(60.f, body.bottom() - optH - y - 6)};
     DrawPostList(ui, vp);
     DrawAccountOptions(ui, {body.x + pad, body.bottom() - optH, body.w - 2 * pad, optH});
@@ -611,7 +625,6 @@ class DownloadDialog : public ToolDialog {
     const float total = acc_.entries.size() * (rowH + gap);
     const float off = ui.BeginScroll(vp, total, ui.Id("acc-scroll"));
     const float w = vp.w - (total > vp.h ? 12.f : 0.f);
-    const int sel = SelectedPosts();
     TextStyle t1; t1.size = 13.f; t1.weight = 600; t1.ellipsis = true; t1.align = ui.Rtl() ? Align::End : Align::Start;
     TextStyle t2; t2.size = 12.f; t2.ellipsis = true; t2.align = ui.Rtl() ? Align::End : Align::Start;
     const int first = std::max(0, (int)std::floor(off / (rowH + gap)));
@@ -619,8 +632,9 @@ class DownloadDialog : public ToolDialog {
     for (int i = first; i < last; ++i) {
       const web::AccountEntry& e = acc_.entries[i];
       Rect row{vp.x, vp.y - off + i * (rowH + gap), w, rowH};
-      const bool on = i < sel;
+      const bool on = i < (int)accPicked_.size() && accPicked_[i];
       p.FillRoundRect(row, control::listRowRadius, pal.fieldFill);
+      if (on) p.StrokeRoundRect(row, control::listRowRadius, accent::base, 1.5f);
       std::wstring title = e.title.empty() ? (e.text.empty() ? std::wstring(L"Post ") + Widen(e.id) : e.text) : e.title;
       std::replace(title.begin(), title.end(), L'\n', L' ');
       std::wstring sub = web::FormatUtcTime(e.timestamp);
@@ -629,10 +643,16 @@ class DownloadDialog : public ToolDialog {
       if (e.duration > 0) { const int t = (int)(e.duration + 0.5); wchar_t b[24]; if (t >= 3600) swprintf_s(b, L"%d:%02d:%02d", t / 3600, (t / 60) % 60, t % 60); else swprintf_s(b, L"%d:%02d", t / 60, t % 60); add(b); }
       if (e.hasMedia && !e.media.empty()) add(std::to_wstring(e.media.size()) + (e.media.size() == 1 ? L" file" : L" files"));
       if (e.hasMedia && e.media.empty()) add(L"text only");
-      Rect tr{row.x + 12, row.y + 5, row.w - 24, 18};
-      Rect sr{row.x + 12, row.y + 24, row.w - 24, 16};
-      p.Text(tr, title, on ? pal.text : pal.textTertiary, t1);
-      p.Text(sr, sub, pal.textTertiary, t2);
+      Rect tr{row.x + 12, row.y + 5, row.w - 52, 18};
+      Rect sr{row.x + 12, row.y + 24, row.w - 52, 16};
+      p.Text(ui.Mirror(tr, row), title, on ? pal.text : pal.textTertiary, t1);
+      p.Text(ui.Mirror(sr, row), sub, pal.textTertiary, t2);
+      DrawMark(p, ui.Rtl() ? row.x + 22 : row.right() - 22, row.cy(), on, 10);
+      ui.PushId(i);
+      Interaction hit = ui.Behavior(row, ui.Id("accrow"), true, false);
+      if (hit.hot) ui.SetCursor((int)(intptr_t)IDC_HAND);
+      if (hit.clicked && i < (int)accPicked_.size()) accPicked_[i] = !accPicked_[i];
+      ui.PopId();
     }
     ui.EndScroll();
   }
@@ -646,10 +666,12 @@ class DownloadDialog : public ToolDialog {
     ui.PushId(0xD16);
     // how many
     {
-      label(y, L"Download the latest");
+      label(y, acc_.ref.isPlaylist ? L"Select the first" : L"Select the latest");
       std::vector<std::wstring> names;
       for (int v : limitVals_) names.push_back(v == 0 ? std::wstring(L"All") : Count((size_t)v));
+      const int before = limitIdx_;
       limitIdx_ = std::clamp(ui.Segmented(ui.Mirror({r.right() - 290, y + 2, 290, 26}, r), names, limitIdx_), 0, (int)limitVals_.size() - 1);
+      if (limitIdx_ != before) PickFirst(limitVals_[limitIdx_]);
       y += 36;
     }
     // what
@@ -724,6 +746,7 @@ class DownloadDialog : public ToolDialog {
     for (int v : {25, 100, 500}) if ((int)ai.entries.size() > v) limitVals_.push_back(v);
     limitVals_.push_back(0);
     limitIdx_ = (int)limitVals_.size() - 1;               // all of it
+    accPicked_.assign(ai.entries.size(), 1);
     Invalidate();
   }
 
@@ -732,7 +755,7 @@ class DownloadDialog : public ToolDialog {
     if (n <= 0) return;
     web::AccountDownloadRequest req;
     req.account = acc_;
-    for (int i = 0; i < n; ++i) req.entries.push_back(i);
+    for (size_t i = 0; i < accPicked_.size(); ++i) if (accPicked_[i]) req.entries.push_back((int)i);
     req.videos = accVideos_; req.pictures = accPictures_; req.text = saveText_;
     req.quality = quality_;
     req.destRoot = dest_;
@@ -835,6 +858,7 @@ class DownloadDialog : public ToolDialog {
   web::AccountInfo acc_, accFixture_;
   std::shared_ptr<ListShared> list_;
   std::vector<int> limitVals_;
+  std::vector<char> accPicked_;
   int limitIdx_ = 0;
   bool accVideos_ = true, accPictures_ = true, saveText_ = true, skipDone_ = true;
   int parallel_ = 3, cookieMode_ = 0;

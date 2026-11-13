@@ -61,6 +61,8 @@ filo-cli account https://x.com/NASA                       # every post, with its
         [--no-videos] [--no-pictures] [--no-text] [--redo] [--parallel 1..4] [--reposts] [--cookies firefox|chrome|edge|cookies.txt]
 ```
 
+* **Playlists** (YouTube `playlist?list=`, Vimeo albums and showcases, SoundCloud sets, Dailymotion playlists) open the same way: Filo lists every video, all ticked. Click a video to
+  untick or tick it, use *All* / *None*, or *Select the first N*, then *Download*. The playlist's own title names the folder.
 * Recognised: TikTok `@name`, YouTube `@handle` / `/channel/` / `/c/` / `/user/` / playlists, X `name`, Instagram, Twitch, Vimeo, SoundCloud, Bandcamp, Bilibili, Dailymotion, Rumble.
 * Everything lands in `Downloads\Filo_<Platform>_<name>\`. Each post is saved as its media files plus a `.txt` with the **full post text**, author, address, date and counts
   (UTF-8; line breaks kept). A post with no picture or video (a tweet) is saved as the text alone.

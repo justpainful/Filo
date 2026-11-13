@@ -4,7 +4,7 @@
 param(
   [string]$Config = "Release",
   [string]$Suffix = "_rel",
-  [ValidatePattern("^[0-9]+[.][0-9]+[.][0-9]+$")][string]$Version = "0.3.1",
+  [ValidatePattern("^[0-9]+[.][0-9]+[.][0-9]+$")][string]$Version = "0.3.2",
   [string]$FfmpegDir = "",
   [string]$YtDlpExe = ""                      # the real yt-dlp.exe (the standalone build, not a shim); found automatically when it is in scoop or on PATH
 )

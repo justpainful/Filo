@@ -117,6 +117,7 @@ CookieSource CookiesInUse();
 // ---- accounts: every post of a TikTok / YouTube / X / ... profile --------------------------------------------------------------------
 struct AccountRef {
   bool is = false;
+  bool isPlaylist = false;               // a playlist / album / set rather than a profile
   Platform platform;
   std::wstring handle;                   // "nasa" (no @)
   std::vector<std::string> listUrls;     // what yt-dlp lists, in order (a YouTube channel has Videos, Shorts and Live tabs)

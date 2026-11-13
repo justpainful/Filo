@@ -304,3 +304,16 @@ TEST(web_post_text_file_has_everything_in_order) {
   yt.title = L"A talk"; yt.description = L"About the talk"; yt.pageUrl = "https://youtu.be/6Eu2wkEc5xM"; yt.uploader = L"chan";
   CHECK(FormatPostText(yt).find(L"A talk\r\n") == 0);
 }
+
+TEST(web_recognises_playlists) {
+  AccountRef y = ClassifyAccount(L"https://www.youtube.com/playlist?list=PLF98rxtslw6sABC");
+  CHECK(y.is); CHECK(y.isPlaylist);
+  CHECK(!ClassifyAccount(L"https://www.youtube.com/@NASA").isPlaylist);
+  AccountRef v = ClassifyAccount(L"https://vimeo.com/album/1234567");
+  CHECK(v.is); CHECK(v.isPlaylist); CHECK(v.listUrls[0] == "https://vimeo.com/album/1234567");
+  CHECK(ClassifyAccount(L"https://vimeo.com/showcase/777").isPlaylist);
+  AccountRef s = ClassifyAccount(L"https://soundcloud.com/artist/sets/my-album");
+  CHECK(s.is); CHECK(s.isPlaylist); CHECK(s.listUrls[0] == "https://soundcloud.com/artist/sets/my-album");
+  CHECK(!ClassifyAccount(L"https://soundcloud.com/artist/tracks").isPlaylist);
+  CHECK(ClassifyAccount(L"https://www.dailymotion.com/playlist/x7abc").isPlaylist);
+}

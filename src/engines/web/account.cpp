@@ -70,10 +70,15 @@ AccountInfo ListAccount(const std::wstring& url, const ListOptions& opt, const s
         nameFromListing = true;
         std::wstring nm = Widen(j->Get("playlist_channel").StringOr(j->Get("playlist_uploader").StringOr("")));
         if (nm.empty()) nm = e.authorName;
-        if (!nm.empty()) ai.name = nm;
-        std::wstring pid = Widen(j->Get("playlist_uploader_id").StringOr(""));
-        if (!pid.empty() && pid[0] == L'@') pid.erase(0, 1);
-        if (LooksLikeChannelId(ai.handle)) ai.handle = !pid.empty() && !LooksLikeChannelId(pid) ? pid : SafePart(ai.name, 24);
+        const std::wstring plTitle = ai.ref.isPlaylist ? Widen(j->Get("playlist_title").StringOr(j->Get("playlist").StringOr(""))) : std::wstring();
+        if (!plTitle.empty()) {                               // a playlist is known by its title, and its folder too
+          ai.name = plTitle; ai.handle = SafePart(plTitle, 24);
+        } else {
+          if (!nm.empty()) ai.name = nm;
+          std::wstring pid = Widen(j->Get("playlist_uploader_id").StringOr(""));
+          if (!pid.empty() && pid[0] == L'@') pid.erase(0, 1);
+          if (LooksLikeChannelId(ai.handle)) ai.handle = !pid.empty() && !LooksLikeChannelId(pid) ? pid : SafePart(ai.name, 24);
+        }
       }
       ai.entries.push_back(e);
       if (onEntry) onEntry(ai.entries.back());

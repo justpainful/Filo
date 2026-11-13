@@ -25,6 +25,40 @@ namespace {
 
 constexpr UINT WM_DL_PROBED = WM_APP + 0x78;
 constexpr UINT WM_DL_THUMB = WM_APP + 0x79;
+constexpr UINT WM_DL_LISTED = WM_APP + 0x7A;
+constexpr UINT WM_DL_COUNT = WM_APP + 0x7B;
+
+// An account being listed: the worker adds posts while the window shows the running count.
+struct ListShared {
+  std::atomic<bool> cancel{false};
+  std::atomic<bool> keep{false};          // "Use what was found": stop listing but keep the posts
+  std::atomic<int> found{0};
+  std::mutex m;
+  web::AccountInfo info;
+};
+
+std::wstring Count(size_t n) {
+  std::wstring d = std::to_wstring(n), out;
+  for (size_t i = 0; i < d.size(); ++i) { if (i && (d.size() - i) % 3 == 0) out += L','; out += d[i]; }
+  return out;
+}
+
+bool PickFileDialog(HWND owner, std::wstring& out) {
+  ComPtr<IFileOpenDialog> dlg;
+  if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dlg.GetAddressOf())))) return false;
+  DWORD opts = 0; dlg->GetOptions(&opts);
+  dlg->SetOptions(opts | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST);
+  dlg->SetTitle(L"Choose a cookies.txt file");
+  COMDLG_FILTERSPEC spec[] = {{L"Cookies (*.txt)", L"*.txt"}, {L"All files", L"*.*"}};
+  dlg->SetFileTypes(2, spec);
+  if (FAILED(dlg->Show(owner))) return false;
+  ComPtr<IShellItem> it;
+  if (FAILED(dlg->GetResult(&it))) return false;
+  PWSTR p = nullptr;
+  if (FAILED(it->GetDisplayName(SIGDN_FILESYSPATH, &p)) || !p) return false;
+  out = p; CoTaskMemFree(p);
+  return true;
+}
 
 struct ProbeShared {
   std::atomic<bool> cancel{false};
@@ -64,20 +98,27 @@ std::wstring ClipboardText(HWND owner) {
 
 class DownloadDialog : public ToolDialog {
  public:
-  DownloadDialog(const std::wstring& url, const web::LinkInfo* fixture) : urlText_(url) {
+  DownloadDialog(const std::wstring& url, const web::LinkInfo* fixture, const web::AccountInfo* accFixture = nullptr) : urlText_(url) {
     Settings st = SettingsStore::Get().Snapshot();
     quality_ = st.downloadQuality == 1 ? web::Quality::Compatible : web::Quality::Best;
     threshold_ = st.downloadFolderThreshold;
     dest_ = st.downloadFolder.empty() ? web::DefaultDownloadsDir() : fs::path(st.downloadFolder);
+    saveText_ = st.downloadSaveText;
+    cookieMode_ = std::clamp(st.downloadCookies, 0, 4);
+    cookieFile_ = st.downloadCookiesFile;
+    parallel_ = std::clamp(st.downloadParallel, 1, 4);
     if (fixture) { fixture_ = *fixture; useFixture_ = true; }
+    if (accFixture) { accFixture_ = *accFixture; useFixture_ = true; accountFixture_ = true; }
   }
   ~DownloadDialog() override {
     if (probe_) probe_->cancel = true;
+    if (list_) list_->cancel = true;
     if (thumbs_) thumbs_->alive = false;
   }
 
  protected:
-  enum class Stage { Input, Probing, Ready, Failed };
+  enum class Stage { Input, Probing, Listing, Ready, Failed };
+  enum class Mode { Post, Account };
 
   DialogOptions Options() const override {
     DialogOptions o; o.title = L"Download from Link"; o.widthDip = 600; o.heightDip = 700; o.resizable = true; o.minWidthDip = 500; o.minHeightDip = 520;
@@ -88,7 +129,7 @@ class DownloadDialog : public ToolDialog {
 
   void OnOpened() override {
     ToolDialog::OnOpened();
-    if (useFixture_) { Adopt(fixture_); return; }
+    if (useFixture_) { if (accountFixture_) AdoptAccount(accFixture_); else Adopt(fixture_); return; }
     if (!web::ExtractUrl(urlText_).empty()) StartProbe();
   }
 
@@ -101,7 +142,16 @@ class DownloadDialog : public ToolDialog {
       }
       SetHandled(true); return 0;
     }
-    if (msg == WM_DL_THUMB) { Invalidate(); SetHandled(true); return 0; }
+    if (msg == WM_DL_THUMB || msg == WM_DL_COUNT) { Invalidate(); SetHandled(true); return 0; }
+    if (msg == WM_DL_LISTED) {
+      if (list_ && (uint64_t)wp == epoch_) {
+        web::AccountInfo ai;
+        { std::lock_guard lk(list_->m); ai = list_->info; }
+        if (ai.ok) AdoptAccount(ai);
+        else { stage_ = Stage::Failed; error_ = ai.error; needsLogin_ = ai.needsLogin; Invalidate(); }
+      }
+      SetHandled(true); return 0;
+    }
     return ToolDialog::OnMessage(msg, wp, lp);
   }
 
@@ -124,17 +174,19 @@ class DownloadDialog : public ToolDialog {
       Rect row{body.x + pad, y, body.w - 2 * pad, 30};
       auto c = ui.Cols(row, {Flex(1), Fixed(70), Fixed(78)}, 8);
       ui.PushId(0xD11);
-      ui.TextInput(c[0], urlText_, L"Paste a link from TikTok, YouTube, X, Instagram...", false, stage_ != Stage::Probing);
-      if (ui.Button(c[1], L"Paste", ButtonStyle::Secondary, stage_ != Stage::Probing)) {
+      const bool busy = stage_ == Stage::Probing || stage_ == Stage::Listing;
+      ui.TextInput(c[0], urlText_, L"Paste a link: a post, or a whole account or channel", false, !busy);
+      if (ui.Button(c[1], L"Paste", ButtonStyle::Secondary, !busy)) {
         const std::wstring u = web::ExtractUrl(ClipboardText(Hwnd()));
         if (!u.empty()) { urlText_ = u; StartProbe(); }
       }
-      if (ui.Button(c[2], stage_ == Stage::Ready ? L"Reload" : L"Read", ButtonStyle::Primary, stage_ != Stage::Probing && !web::ExtractUrl(urlText_).empty())) StartProbe();
+      if (ui.Button(c[2], stage_ == Stage::Ready ? L"Reload" : L"Read", ButtonStyle::Primary, !busy && !web::ExtractUrl(urlText_).empty())) StartProbe();
       ui.PopId();
       y += 42;
     }
 
     if (stage_ != Stage::Ready) { DrawStatusBody(ui, {body.x + pad, y, body.w - 2 * pad, body.bottom() - y - 8}); DrawFooterBar(ui, content); return; }
+    if (mode_ == Mode::Account) { DrawAccount(ui, body, y); DrawFooterBar(ui, content); return; }
 
     // ---- header: thumbnail + title + summary
     {
@@ -171,12 +223,31 @@ class DownloadDialog : public ToolDialog {
       ui.ProgressBar({r.cx() - 120, r.y + 108, 240, 6}, 0, true);
       TextStyle sm; sm.size = 12.5f; sm.align = Align::Center; sm.wrap = true; sm.vcenter = false;
       p.Text({r.x + 30, r.y + 130, r.w - 60, 40}, L"Filo asks the site what this post contains. Nothing is saved yet.", pal.textTertiary, sm);
+    } else if (stage_ == Stage::Listing) {
+      const int n = list_ ? list_->found.load() : 0;
+      p.Text({r.x, r.y + 60, r.w, 26}, L"Reading the account...", pal.text, ts);
+      ui.ProgressBar({r.cx() - 120, r.y + 98, 240, 6}, 0, true);
+      TextStyle big; big.size = 22; big.weight = 700; big.align = Align::Center;
+      p.Text({r.x, r.y + 118, r.w, 34}, n > 0 ? Count((size_t)n) + (n == 1 ? L" post found" : L" posts found") : std::wstring(L"Looking for posts..."), accent::base, big);
+      TextStyle sm; sm.size = 12.5f; sm.align = Align::Center; sm.wrap = true; sm.vcenter = false;
+      p.Text({r.x + 30, r.y + 160, r.w - 60, 40}, L"Filo lists every post first. Nothing is saved until you press Download. Big accounts take a few minutes.", pal.textTertiary, sm);
+      ui.PushId(0xD14);
+      if (ui.Button({r.cx() - 100, r.y + 214, 200, 30}, L"Use what was found", ButtonStyle::Secondary, n > 0) && list_) { list_->keep = true; list_->cancel = true; }
+      ui.PopId();
     } else if (stage_ == Stage::Failed) {
       p.FillCircle(r.cx(), r.y + 86, 26, Color::Hex(0xE5484D, 0.16f));
       p.Icon("warning", r.cx(), r.y + 86, 28, Color::Hex(0xE5484D), 2.f);
       TextStyle t; t.size = 16; t.weight = 600; t.align = Align::Center;
-      p.Text({r.x, r.y + 126, r.w, 26}, L"This link could not be read", pal.text, t);
+      p.Text({r.x, r.y + 126, r.w, 26}, accountUrl_ ? L"This account could not be read" : L"This link could not be read", pal.text, t);
       p.Text({r.x + 24, r.y + 158, r.w - 48, 70}, error_.empty() ? L"Something went wrong." : error_, pal.textSecondary, ts);
+      if (needsLogin_) {
+        ui.PushId(0xD15);
+        TextStyle ls; ls.size = dialog::bodyFontSize;
+        p.Text({r.x + 24, r.y + 236, 150, 30}, L"Sign in with", pal.text, ls);
+        DrawCookiePicker(ui, {r.x + 170, r.y + 236, r.w - 194, 30});
+        if (ui.Button({r.cx() - 70, r.y + 282, 140, 30}, L"Read again", ButtonStyle::Primary, !web::ExtractUrl(urlText_).empty())) StartProbe();
+        ui.PopId();
+      }
     } else {
       p.FillCircle(r.cx(), r.y + 86, 30, accent::base.WithAlpha(0.16f));
       DrawDownloadGlyph(p, r.cx(), r.y + 86, 30, accent::base, 2.6f);
@@ -193,12 +264,16 @@ class DownloadDialog : public ToolDialog {
     add(info_.CountOf(web::ItemKind::Image), L"picture", L"pictures");
     add(info_.CountOf(web::ItemKind::Audio), L"sound", L"sounds");
     if (info_.isPlaylist && info_.items.size() >= 80) s += L"  \x00B7  First 80 items";
+    if (info_.textOnly) s = L"Text only  \x00B7  no picture or video";
     return s;
   }
 
-  float OptionsHeight() const { return 36.f * (2 + (info_.CountOf(web::ItemKind::Video) ? 2 : 0) + (info_.CountOf(web::ItemKind::Video) || info_.CountOf(web::ItemKind::Audio) ? 1 : 0)) + 18.f; }
+  float OptionsHeight() const {
+    return 36.f * (2 + (info_.CountOf(web::ItemKind::Video) ? 2 : 0) + (info_.CountOf(web::ItemKind::Video) || info_.CountOf(web::ItemKind::Audio) ? 1 : 0) + (info_.HasText() ? 1 : 0)) + 18.f;
+  }
 
   int SelectedFiles() const {
+    if (info_.textOnly) return saveText_ && info_.HasText() ? 1 : 0;
     int n = 0, videos = 0;
     for (size_t i = 0; i < picked_.size(); ++i) if (picked_[i]) { ++n; if (info_.items[i].kind == web::ItemKind::Video) ++videos; }
     if (wantAudio_) n += videos > 0 ? videos : info_.CountOf(web::ItemKind::Video);
@@ -214,6 +289,14 @@ class DownloadDialog : public ToolDialog {
   void DrawFooterBar(Ui& ui, const Rect& content) {
     FooterInfo fi;
     fi.action = L"Download";
+    if (stage_ == Stage::Ready && mode_ == Mode::Account) {
+      const int posts = SelectedPosts();
+      fi.actionEnabled = posts > 0 && (accVideos_ || accPictures_ || saveText_);
+      fi.status = fi.actionEnabled ? Count((size_t)posts) + (posts == 1 ? L" post" : L" posts") + L"  \x00B7  into " + web::AccountFolderName(acc_.platform, acc_.handle)
+                                   : std::wstring(L"Choose what to save.");
+      if (DrawFooter(ui, content, fi).action) StartDownload();
+      return;
+    }
     const int n = SelectedFiles();
     fi.actionEnabled = stage_ == Stage::Ready && n > 0;
     if (stage_ == Stage::Ready) {
@@ -223,7 +306,7 @@ class DownloadDialog : public ToolDialog {
         if (const int64_t b = SelectedBytes()) fi.status += L"  \x00B7  about " + FormatBytes((uint64_t)b);
         if (threshold_ > 0 && n >= threshold_) fi.status += L"  \x00B7  saved in a folder";
       }
-    } else fi.status = stage_ == Stage::Probing ? L"Reading..." : L"Downloads go to " + dest_.wstring();
+    } else fi.status = stage_ == Stage::Probing || stage_ == Stage::Listing ? L"Reading..." : L"Downloads go to " + dest_.wstring();
     if (DrawFooter(ui, content, fi).action) StartDownload();
   }
 
@@ -234,6 +317,10 @@ class DownloadDialog : public ToolDialog {
     TextStyle ls; ls.size = dialog::bodyFontSize;
     auto label = [&](float yy, const wchar_t* t) { p.Text({r.x, yy, r.w * 0.4f, 30}, t, pal.text, ls); };
     ui.PushId(0xD12);
+    if (info_.HasText()) {
+      ui.Checkbox(ui.Mirror({r.x, y + 2, r.w, 26}, r), info_.textOnly ? L"Save the post text (.txt)" : L"Also save the post text (.txt)", saveText_);
+      y += 36;
+    }
     if (info_.CountOf(web::ItemKind::Video)) {
       label(y, L"Video quality");
       int n = ui.Segmented(ui.Mirror({r.right() - 290, y + 2, 290, 26}, r), {L"Best available", L"Most compatible"}, quality_ == web::Quality::Best ? 0 : 1);
@@ -455,10 +542,221 @@ class DownloadDialog : public ToolDialog {
     }
   }
 
+  // ------------------------------------------------------------------------------------------------ accounts
+  int SelectedPosts() const {
+    const int total = (int)acc_.entries.size();
+    const int lim = limitIdx_ >= 0 && limitIdx_ < (int)limitVals_.size() ? limitVals_[limitIdx_] : 0;
+    return lim > 0 ? std::min(lim, total) : total;
+  }
+
+  void ApplyCookies() {
+    web::SetCookies((web::CookieSource)std::clamp(cookieMode_, 0, 4), cookieFile_);
+    SettingsStore::Get().Update([&](Settings& s) { s.downloadCookies = cookieMode_; s.downloadCookiesFile = cookieFile_; });
+  }
+
+  // "Sign in with": none, a browser's saved login, or a cookies.txt file. Sites like Instagram only show accounts to signed-in visitors.
+  void DrawCookiePicker(Ui& ui, const Rect& r) {
+    const Palette& pal = ui.Pal(); Painter& p = ui.P();
+    static const std::vector<std::wstring> kinds = {L"Nobody", L"Firefox", L"Chrome", L"Edge", L"cookies.txt file"};
+    Rect dd{r.right() - 170, r.y + 2, 170, 26};
+    int sel = cookieMode_;
+    if (ui.Dropdown(ui.Mirror(dd, r), kinds, sel) && sel != cookieMode_) {
+      cookieMode_ = sel;
+      if (sel == 4 && cookieFile_.empty()) { std::wstring f; if (PickFileDialog(Hwnd(), f)) cookieFile_ = f; else cookieMode_ = 0; }
+      ApplyCookies();
+    }
+    if (cookieMode_ == 4) {
+      Rect fb{dd.x - 8 - 150, r.y + 2, 150, 26};
+      const std::wstring name = cookieFile_.empty() ? std::wstring(L"Choose file...") : fs::path(cookieFile_).filename().wstring();
+      if (ui.Button(ui.Mirror(fb, r), name, ButtonStyle::Secondary)) { std::wstring f; if (PickFileDialog(Hwnd(), f)) { cookieFile_ = f; ApplyCookies(); } }
+    }
+    (void)pal; (void)p;
+  }
+
+  float AccountOptionsHeight() const { return 36.f * 6 + 18.f; }
+
+  void DrawAccount(Ui& ui, const Rect& body, float y) {
+    const Palette& pal = ui.Pal(); Painter& p = ui.P();
+    const float pad = dialog::contentInset;
+    const bool rtl = ui.Rtl();
+    // ---- header: a disc with the first letter, the name, the handle, how many posts
+    {
+      Rect th{body.x + pad, y, 72, 72};
+      if (rtl) th.x = body.right() - pad - 72;
+      p.FillCircle(th.cx(), th.cy(), 36, accent::base.WithAlpha(0.16f));
+      TextStyle ti; ti.size = 28; ti.weight = 700; ti.align = Align::Center;
+      p.Text(th, acc_.name.empty() ? std::wstring(L"?") : std::wstring(1, (wchar_t)towupper(acc_.name[0])), accent::base, ti);
+      const float tx = rtl ? body.x + pad : th.right() + 14, tw = body.w - 2 * pad - 72 - 14;
+      TextStyle t1; t1.size = 16; t1.weight = 700; t1.ellipsis = true; t1.align = rtl ? Align::End : Align::Start;
+      TextStyle t2; t2.size = 13; t2.ellipsis = true; t2.align = rtl ? Align::End : Align::Start;
+      p.Text({tx, y + 4, tw, 24}, acc_.name.empty() ? acc_.handle : acc_.name, pal.text, t1);
+      p.Text({tx, y + 32, tw, 18}, acc_.platform.name + (acc_.handle.empty() ? L"" : L"  \x00B7  @" + acc_.handle), pal.textSecondary, t2);
+      std::wstring sum = Count(acc_.entries.size()) + (acc_.entries.size() == 1 ? L" post" : L" posts");
+      if (acc_.capped) sum += L"  \x00B7  the first " + Count(acc_.entries.size()) + L" are listed";
+      else if (acc_.interrupted) sum += L"  \x00B7  listing stopped early";
+      if (acc_.platform.id == "x") sum += L"  \x00B7  reposts not included";
+      p.Text({tx, y + 52, tw, 18}, sum, pal.textTertiary, t2);
+      y += 84;
+    }
+    const float optH = AccountOptionsHeight();
+    Rect vp{body.x + pad, y, body.w - 2 * pad, std::max(60.f, body.bottom() - optH - y - 6)};
+    DrawPostList(ui, vp);
+    DrawAccountOptions(ui, {body.x + pad, body.bottom() - optH, body.w - 2 * pad, optH});
+  }
+
+  // the posts, newest first; the ones past "Download the latest N" are dimmed
+  void DrawPostList(Ui& ui, const Rect& vp) {
+    const Palette& pal = ui.Pal(); Painter& p = ui.P();
+    const float rowH = 44.f, gap = 4.f;
+    const float total = acc_.entries.size() * (rowH + gap);
+    const float off = ui.BeginScroll(vp, total, ui.Id("acc-scroll"));
+    const float w = vp.w - (total > vp.h ? 12.f : 0.f);
+    const int sel = SelectedPosts();
+    TextStyle t1; t1.size = 13.f; t1.weight = 600; t1.ellipsis = true; t1.align = ui.Rtl() ? Align::End : Align::Start;
+    TextStyle t2; t2.size = 12.f; t2.ellipsis = true; t2.align = ui.Rtl() ? Align::End : Align::Start;
+    const int first = std::max(0, (int)std::floor(off / (rowH + gap)));
+    const int last = std::min((int)acc_.entries.size(), first + (int)std::ceil(vp.h / (rowH + gap)) + 2);
+    for (int i = first; i < last; ++i) {
+      const web::AccountEntry& e = acc_.entries[i];
+      Rect row{vp.x, vp.y - off + i * (rowH + gap), w, rowH};
+      const bool on = i < sel;
+      p.FillRoundRect(row, control::listRowRadius, pal.fieldFill);
+      std::wstring title = e.title.empty() ? (e.text.empty() ? std::wstring(L"Post ") + Widen(e.id) : e.text) : e.title;
+      std::replace(title.begin(), title.end(), L'\n', L' ');
+      std::wstring sub = web::FormatUtcTime(e.timestamp);
+      if (!sub.empty()) sub = sub.substr(0, 10);
+      auto add = [&](const std::wstring& s) { if (s.empty()) return; if (!sub.empty()) sub += L"  \x00B7  "; sub += s; };
+      if (e.duration > 0) { const int t = (int)(e.duration + 0.5); wchar_t b[24]; if (t >= 3600) swprintf_s(b, L"%d:%02d:%02d", t / 3600, (t / 60) % 60, t % 60); else swprintf_s(b, L"%d:%02d", t / 60, t % 60); add(b); }
+      if (e.hasMedia && !e.media.empty()) add(std::to_wstring(e.media.size()) + (e.media.size() == 1 ? L" file" : L" files"));
+      if (e.hasMedia && e.media.empty()) add(L"text only");
+      Rect tr{row.x + 12, row.y + 5, row.w - 24, 18};
+      Rect sr{row.x + 12, row.y + 24, row.w - 24, 16};
+      p.Text(tr, title, on ? pal.text : pal.textTertiary, t1);
+      p.Text(sr, sub, pal.textTertiary, t2);
+    }
+    ui.EndScroll();
+  }
+
+  void DrawAccountOptions(Ui& ui, const Rect& r) {
+    const Palette& pal = ui.Pal(); Painter& p = ui.P();
+    p.FillRect({r.x, r.y, r.w, 1}, pal.divider);
+    float y = r.y + 10;
+    TextStyle ls; ls.size = dialog::bodyFontSize;
+    auto label = [&](float yy, const wchar_t* t) { p.Text(ui.Mirror({r.x, yy, r.w * 0.4f, 30}, r), t, pal.text, ls); };
+    ui.PushId(0xD16);
+    // how many
+    {
+      label(y, L"Download the latest");
+      std::vector<std::wstring> names;
+      for (int v : limitVals_) names.push_back(v == 0 ? std::wstring(L"All") : Count((size_t)v));
+      limitIdx_ = std::clamp(ui.Segmented(ui.Mirror({r.right() - 290, y + 2, 290, 26}, r), names, limitIdx_), 0, (int)limitVals_.size() - 1);
+      y += 36;
+    }
+    // what
+    {
+      label(y, L"Save");
+      Rect box{r.right() - 290, y + 2, 290, 26};
+      auto c = ui.Cols(ui.Mirror(box, r), {Flex(1), Flex(1), Flex(1.25f)}, 4);
+      ui.Checkbox(c[0], L"Videos", accVideos_);
+      ui.Checkbox(c[1], L"Pictures", accPictures_);
+      ui.Checkbox(c[2], L"Post text", saveText_);
+      y += 36;
+    }
+    label(y, L"Video quality");
+    {
+      int n = ui.Segmented(ui.Mirror({r.right() - 290, y + 2, 290, 26}, r), {L"Best available", L"Most compatible"}, quality_ == web::Quality::Best ? 0 : 1);
+      quality_ = n == 1 ? web::Quality::Compatible : web::Quality::Best;
+      y += 36;
+    }
+    label(y, L"Sign in with");
+    DrawCookiePicker(ui, {r.x + r.w * 0.3f, y, r.w * 0.7f, 30});
+    y += 36;
+    label(y, L"Save to");
+    {
+      const float bw = 84;
+      TextStyle ps; ps.size = 13; ps.align = Align::End; ps.ellipsis = true;
+      Rect pathR = ui.Mirror({r.x + r.w * 0.22f, y, r.w * 0.78f - bw - 10, 30}, r);
+      p.Text(pathR, dest_.wstring(), pal.textSecondary, ps);
+      if (ui.Button(ui.Mirror({r.right() - bw, y + 2, bw, 26}, r), L"Change...", ButtonStyle::Secondary)) {
+        std::wstring f;
+        if (PickFolderDialog(Hwnd(), f)) dest_ = f;
+      }
+      y += 36;
+    }
+    {
+      ui.Checkbox(ui.Mirror({r.x, y + 2, r.w * 0.52f, 26}, r), L"Skip posts saved before", skipDone_);
+      p.Text(ui.Mirror({r.x + r.w * 0.56f, y, r.w * 0.2f, 30}, r), L"At once", pal.text, ls);
+      double v = parallel_;
+      if (ui.Stepper(ui.Mirror({r.right() - 110, y + 2, 110, 26}, r), v, 1, 4, 1, 0)) parallel_ = (int)v;
+    }
+    ui.PopId();
+  }
+
+  void StartList(const std::wstring& url) {
+    if (probe_) probe_->cancel = true;
+    if (list_) list_->cancel = true;
+    if (thumbs_) thumbs_->alive = false;
+    thumbs_.reset();
+    list_ = std::make_shared<ListShared>();
+    mode_ = Mode::Account; accountUrl_ = true;
+    stage_ = Stage::Listing; error_.clear(); needsLogin_ = false;
+    urlText_ = url;
+    const uint64_t epoch = ++epoch_;
+    auto sh = list_; HWND hw = Hwnd();
+    std::thread([sh, url, hw, epoch]() {
+      web::ListOptions lo;
+      web::AccountInfo ai = web::ListAccount(url, lo, &sh->cancel, [&](const web::AccountEntry&) {
+        const int n = ++sh->found;
+        if (n < 20 || n % 10 == 0) PostMessageW(hw, WM_DL_COUNT, 0, 0);
+      });
+      if (sh->cancel && !sh->keep) return;                 // replaced by another link, or the window closed
+      { std::lock_guard lk(sh->m); sh->info = std::move(ai); }
+      PostMessageW(hw, WM_DL_LISTED, (WPARAM)epoch, 0);
+    }).detach();
+    Invalidate();
+  }
+
+  void AdoptAccount(const web::AccountInfo& ai) {
+    acc_ = ai;
+    mode_ = Mode::Account; accountUrl_ = true;
+    stage_ = Stage::Ready;
+    limitVals_.clear();
+    for (int v : {25, 100, 500}) if ((int)ai.entries.size() > v) limitVals_.push_back(v);
+    limitVals_.push_back(0);
+    limitIdx_ = (int)limitVals_.size() - 1;               // all of it
+    Invalidate();
+  }
+
+  void StartAccountDownload() {
+    const int n = SelectedPosts();
+    if (n <= 0) return;
+    web::AccountDownloadRequest req;
+    req.account = acc_;
+    for (int i = 0; i < n; ++i) req.entries.push_back(i);
+    req.videos = accVideos_; req.pictures = accPictures_; req.text = saveText_;
+    req.quality = quality_;
+    req.destRoot = dest_;
+    req.folderThreshold = threshold_;
+    req.skipDone = skipDone_;
+    req.parallel = parallel_;
+    SettingsStore::Get().Update([&](Settings& s) {
+      s.downloadQuality = quality_ == web::Quality::Compatible ? 1 : 0;
+      s.downloadFolder = dest_ == web::DefaultDownloadsDir() ? std::wstring() : dest_.wstring();
+      s.downloadSaveText = saveText_;
+      s.downloadParallel = parallel_;
+    });
+    RunJob(L"Downloading from " + (acc_.name.empty() ? acc_.handle : acc_.name), [req](JobContext& ctx) { return web::DownloadAccount(req, ctx); });
+  }
+
   // ------------------------------------------------------------------------------------------------ probe and download
   void StartProbe() {
     const std::wstring url = web::ExtractUrl(urlText_);
     if (url.empty()) { stage_ = Stage::Failed; error_ = L"That is not a web address."; Invalidate(); return; }
+    ApplyCookies();
+    needsLogin_ = false;
+    if (web::IsAccountUrl(url)) { StartList(url); return; }
+    mode_ = Mode::Post; accountUrl_ = false;
+    if (list_) list_->cancel = true;
     if (probe_) probe_->cancel = true;
     if (thumbs_) thumbs_->alive = false;
     thumbs_.reset();
@@ -493,9 +791,11 @@ class DownloadDialog : public ToolDialog {
   }
 
   void StartDownload() {
+    if (stage_ == Stage::Ready && mode_ == Mode::Account) { StartAccountDownload(); return; }
     if (stage_ != Stage::Ready || SelectedFiles() == 0) return;
     web::DownloadRequest req;
     req.info = info_;
+    req.saveText = saveText_ && info_.HasText();
     for (size_t i = 0; i < picked_.size(); ++i) if (picked_[i]) req.items.push_back((int)i);
     req.wantAudio = wantAudio_;
     req.quality = quality_;
@@ -507,6 +807,7 @@ class DownloadDialog : public ToolDialog {
       s.downloadQuality = quality_ == web::Quality::Compatible ? 1 : 0;
       s.downloadFolderThreshold = threshold_;
       s.downloadFolder = dest_ == web::DefaultDownloadsDir() ? std::wstring() : dest_.wstring();
+      s.downloadSaveText = saveText_;
     });
     RunJob(L"Downloading from " + info_.platform.name, [req](JobContext& ctx) { return web::Download(req, ctx); });
   }
@@ -528,12 +829,22 @@ class DownloadDialog : public ToolDialog {
   std::vector<ComPtr<ID2D1Bitmap>> bmps_;
   int headerThumbItem_ = -1;
   uint64_t epoch_ = 0;
+  // accounts
+  Mode mode_ = Mode::Post;
+  bool accountUrl_ = false, needsLogin_ = false, accountFixture_ = false;
+  web::AccountInfo acc_, accFixture_;
+  std::shared_ptr<ListShared> list_;
+  std::vector<int> limitVals_;
+  int limitIdx_ = 0;
+  bool accVideos_ = true, accPictures_ = true, saveText_ = true, skipDone_ = true;
+  int parallel_ = 3, cookieMode_ = 0;
+  std::wstring cookieFile_;
 };
 
 }  // namespace
 
-ui::DialogWindow* OpenDownloadDialog(const std::wstring& url, const web::LinkInfo* fixture, bool show) {
-  auto* d = new DownloadDialog(url, fixture);
+ui::DialogWindow* OpenDownloadDialog(const std::wstring& url, const web::LinkInfo* fixture, bool show, const web::AccountInfo* accountFixture) {
+  auto* d = new DownloadDialog(url, fixture, accountFixture);
   return ToolDialog::OpenDialog(d, show) ? d : nullptr;
 }
 

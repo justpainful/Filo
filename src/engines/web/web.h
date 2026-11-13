@@ -166,6 +166,9 @@ struct ListOptions {
 AccountInfo ListAccount(const std::wstring& url, const ListOptions& opt, const std::atomic<bool>* cancel = nullptr,
                         const std::function<void(const AccountEntry&)>& onEntry = {});
 
+// An account from a saved listing (yt-dlp -J style: {"_filo_account":{"name":..},"entries":[...]}); fixtures and screenshots.
+AccountInfo AccountFromJson(const Json& root, const std::wstring& url);
+
 struct AccountDownloadRequest {
   AccountInfo account;
   std::vector<int> entries;              // indices into account.entries, in download order

@@ -104,6 +104,21 @@ AccountInfo ListAccount(const std::wstring& url, const ListOptions& opt, const s
   return ai;
 }
 
+AccountInfo AccountFromJson(const Json& root, const std::wstring& url) {
+  AccountInfo ai;
+  ai.sourceUrl = url;
+  ai.ref = ClassifyAccount(url);
+  ai.platform = ai.ref.is ? ai.ref.platform : DetectPlatform(url);
+  ai.handle = ai.ref.handle;
+  ai.name = Widen(root.Get("_filo_account").Get("name").StringOr(Narrow(ai.handle)));
+  for (const Json& e : root.Get("entries").Elements()) {
+    AccountEntry en;
+    if (ParseAccountEntry(e, en)) ai.entries.push_back(std::move(en));
+  }
+  ai.ok = !ai.entries.empty();
+  return ai;
+}
+
 // ------------------------------------------------------------------------------------------------ downloading
 namespace {
 

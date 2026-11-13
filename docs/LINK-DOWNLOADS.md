@@ -48,9 +48,11 @@ Video format can be set to Auto, MP4, MKV, or WebM. MP4 and WebM require suitabl
 * Tools: `tools\yt-dlp.exe`, `tools\yt-dlp-plugins\`, `tools\ffmpeg.exe` next to `Filo.exe` (development builds find yt-dlp on `PATH` and the plugin in
   `assets\`). `scripts\package.ps1` stages them (`-YtDlpExe` if the standalone exe is not found automatically).
 
-## Whole accounts and channels (0.3.0, command line)
+## Whole accounts and channels (0.3.1)
 
-Everything a profile or channel has posted can be saved in one go. In this release it runs from `filo-cli`; the window for it comes next.
+Everything a profile or channel has posted can be saved in one go. Paste (or drop) the address of an account, a channel or a playlist in the **Download from Link** window:
+Filo lists every post (with a live count and *Use what was found* for huge accounts), then you choose how many of the latest to take, what to save (videos, pictures, post text),
+the quality, an optional sign-in (Firefox / Chrome / Edge / cookies.txt) and press *Download*. The same thing from the command line:
 
 ```powershell
 filo-cli account https://www.tiktok.com/@nasa            [--limit N] [--out dir] [--list]
@@ -66,7 +68,7 @@ filo-cli account https://x.com/NASA                       # every post, with its
 * **X** has no public timeline for visitors, so Filo's yt-dlp plugin (`filo_twitter_user.py`) reads it from the public FixTweet API (`api.fxtwitter.com`). Only the account handle is sent there,
   no sign-in is needed, and reposts are left out unless `--reposts`. The service sometimes answers slowly or says 404 for a moment; Filo asks again.
 * Instagram and other sites that hide accounts from visitors need a sign-in: `--cookies firefox` (or chrome / edge, or a `cookies.txt` file).
-* Single posts: `filo-cli download <url> --text` also saves the text file.
+* Single posts: the window has *Also save the post text*; `filo-cli download <url> --text` does the same. A tweet with no media is offered as *Text only*.
 
 ## Headless checks
 

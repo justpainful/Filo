@@ -220,8 +220,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     std::string text, jerr;
     if (FILE* f = _wfopen(argv[3], L"rb")) { char buf[65536]; size_t n; while ((n = fread(buf, 1, sizeof buf, f)) > 0) text.append(buf, n); fclose(f); }
     if (auto j = Json::Parse(text, &jerr)) {
-      web::LinkInfo li = web::ParseProbe(*j, Widen(j->Get("webpage_url").StringOr("https://example.com/post")));
-      if (auto* d = tools::OpenDownloadDialog(L"", &li, false)) {
+      web::LinkInfo li = j->Has("_filo_account") ? web::LinkInfo() : web::ParseProbe(*j, Widen(j->Get("webpage_url").StringOr("https://example.com/post")));
+      web::AccountInfo acct;
+      if (j->Has("_filo_account")) acct = web::AccountFromJson(*j, Widen(j->Get("_filo_account").Get("url").StringOr("https://x.com/NASA")));
+      if (auto* d = tools::OpenDownloadDialog(L"", &li, false, j->Has("_filo_account") ? &acct : nullptr)) {
         const double t0 = NowSeconds(); MSG m;
         while (NowSeconds() - t0 < (wait ? 6.0 : 0.3)) { while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&m); DispatchMessageW(&m); } Sleep(20); }
         ok = d->RenderToPng(argv[2]);
